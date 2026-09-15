@@ -1,0 +1,7 @@
+Deeper ETA: https://arxiv.org/pdf/2206.02127
+
+Distillation of Google Maps API: https://arxiv.org/html/2602.15069v1
+
+Travel Time Baysian, touches on origins: https://arxiv.org/pdf/1312.1873
+
+Statistical methods and cleaning, OG paper: https://www.researchgate.net/publication/220534845_Empirical_Analysis_of_Ambulance_Travel_Times_The_Case_of_Calgary_Emergency_Medical_Services
