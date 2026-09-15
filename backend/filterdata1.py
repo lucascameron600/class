@@ -62,7 +62,6 @@ def filter_columns(dataframe):
     for name, start, end in VARIABLES.TIME_INTERVALS:
         dataframe[name] = (dataframe[end] - dataframe[start]).dt.total_seconds()
 
-        #dataframe[name] = dataframe[name].where(dataframe[name] >= 0, None)
 
     ##grouping based off when the call was received. Need recieved time to be usable
     dataframe["hour_of_day"] = dataframe["received_time"].dt.hour.astype('int64')
@@ -80,7 +79,7 @@ def flag_unit_types(dataframe):
     ##anything that landed in no group is unaccounted for unit_type
     unknown = dataframe[~dataframe['is_fire'] & ~dataframe['is_command'] & ~dataframe['is_transport']]
     if len(unknown) > 0:
-        print(f"  yo {len(unknown),} rows are not is_fire or is_command or is_transport:")
+        print(f"  yo {len(unknown)} rows are not is_fire or is_command or is_transport:")
         print(unknown['unit_type'].value_counts().head(10))
 
     print(f"fire rows: {dataframe['is_fire'].sum():,} of {len(dataframe):,}")
@@ -108,7 +107,7 @@ def flag_cancelled(dataframe):
 
 
 
-#future
+#NEXT
 
 #def flag_mutual_aid_ems()
 
@@ -199,6 +198,7 @@ def remove_unusable_calls(dataframe):
 #___________________________________________________________________________________
 ##cut down to a study period. both ends are inclusive so end="2019-05-31" keeps
 ##everything that happened on may 31st
+#broken
 def keep_dates(dataframe, start=None, end=None):
     if start is None and end is None:
         return dataframe
@@ -283,11 +283,12 @@ def main():
     print("CLEANING")
     clean = remove_unusable_calls(dataframe)
 
+    ###NOTE
+    #Two remaining type issues in that listing worth your attention: als_unit is still str holding 'true'/'false',
+    #and number_of_alarms/dispatch_sequence are still str when they're numeric.
+    #Both will bite the moment you filter on them.
 
     data_printout(clean)
-
-    #clean = keep_dates(clean, "2017-06-01", "2019-05-31")
-
     plotr2(clean)
 
     #plotr(clean['total_resonse_seconds'])
