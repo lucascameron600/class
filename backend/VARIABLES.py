@@ -9,8 +9,9 @@ RAW_CAD_FILE = Path('../data/workingfiles/cad/raw_sf_cad.parquet')
 RAW_STATIONS_CSV = Path('../data/sf_fire_stations.csv')
 
 
-WORKING_CAD_PARQ = Path('../data/workingfiles/cad/working_sf_cad.parquet')
-WORKING_STATIONS_CSV = Path("../data/workingfiles/stations/working_sf_stations.csv")
+POST_ET_CAD_PARQ = Path('../data/workingfiles/cad/post_etl_sf_cad.parquet')
+POST_ET_STATIONS_CSV = Path("../data/workingfiles/stations/working_sf_stations.csv")
+
 
 # where the charts land. keeps plots out of whatever directory you happened to run from
 FIGURE_DIR = Path('../data/workingfiles/figures')

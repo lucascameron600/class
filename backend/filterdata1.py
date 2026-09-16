@@ -2,7 +2,9 @@ import pandas as pd
 import numpy as np
 import geopandas as gpd
 import VARIABLES
+import seaborn as sea
 import matplotlib.pyplot as plt
+from aquarel import load_theme
 import time
 
 ##reads the raw CAD parquet, normalizes it, flags it, and exports a parquet.
@@ -14,13 +16,13 @@ import time
 
 FIRE_UNITS = ['INVESTIGATION', 'AIRPORT', 'MEDIC', 'SUPPORT', 'CHIEF', 'CP', 'ENGINE', 'TRUCK', 'RESCUE SQUAD', 'RESCUE CAPTAIN']
 SUPPRESSION_UNITS = ['ENGINE', 'TRUCK', 'SUPPORT']
-TRANSPORT_UNITS = ['MEDIC', 'PRIVATE', 'BLS']  #PRIVATE is the only non fire unit
+TRANSPORT_UNITS = ['MEDIC', 'PRIVATE']  #PRIVATE is the only non fire unit
 COMMAND_UNITS = ['CP', 'CHIEF']
 
 
 PRIORITY_COLUMN = "final_priority"  #sf final priority is the 2 or 3 that says emergency
-PRIORITY_CODES = ["2","3"]                 #sf counts 3 as a code 3 emergency response
-
+EMERGENT_PRIORITY_CODES = ["3"]                 #sf counts 3 as a code 3 emergency response
+#NON_EMERGENT_PRIORITY_CODES = ["2", "1", "A"]
 
 ##cad data come in as text or numbers depending on the export.
 ##  " E10" -> "E10"   10.0 -> "10" for comparison
@@ -88,8 +90,8 @@ def flag_unit_types(dataframe):
 
 ##emergency response or not
 def flag_code3(dataframe):
-    series = dataframe['final_priority']
-    dataframe['is_code3'] = series.isin(['3']).to_numpy(dtype=bool)
+    series = dataframe[PRIORITY_COLUMN]
+    dataframe['is_code3'] = series.isin(EMERGENT_PRIORITY_CODES).to_numpy(dtype=bool)
     dataframe['is_code2'] = series.isin(['2', '1']).to_numpy(dtype=bool)
     #dataframe['is_code3'] = dataframe[PRIORITY_COLUMN] == PRIORITY_CODE
     n = len(dataframe)
@@ -99,6 +101,7 @@ def flag_code3(dataframe):
     return dataframe
 
 
+##this is more cancelled after call received,
 def flag_cancelled(dataframe):
     dataframe['is_cancelled_en_route'] = (dataframe['dispatch_time'].notna()
                                        & dataframe['onscene_time'].isna())
@@ -106,10 +109,15 @@ def flag_cancelled(dataframe):
     return dataframe
 
 
+#def flag_
 
 #NEXT
 
 #def flag_mutual_aid_ems()
+
+#def flag_response_in_first_due():
+
+
 
 #outside its own station area for a response, (longer times dont count for response time calculation)
 #def flag_mutual_aid_fire(dataframe):
@@ -124,6 +132,8 @@ def flag_cancelled(dataframe):
 ##this has to happen before anything is dropped. if you drop the medic first then
 ##the engine looks like it was first when really the medic beat it there.
 ##soc.py re-ranks inside its own population, this one is just descriptive.
+
+## memory killer
 def flag_arrival_order(dataframe):
     print(f"length before flagging arrival{len(dataframe)}")
     dataframe = dataframe.sort_values(['call_id', 'onscene_time'])
@@ -147,7 +157,7 @@ def flag_arrival_order(dataframe):
     print(f"flagged arrival order over all units now have {len(dataframe)}")
     return dataframe
 
-
+#memory killer
 def remove_unusable_calls(dataframe):
 
     get_not_duplicate = ~dataframe.duplicated(subset=["call_id", "unit_id", "dispatch_time"], keep="first")
@@ -164,16 +174,18 @@ def remove_unusable_calls(dataframe):
     total = dataframe['total_response_seconds']
     from_alarm = dataframe['response_from_alarm_seconds']
 
-    first_arrivers = dataframe[dataframe['arrival_rank_all'] == 1]
+    first_arrivers = dataframe['arrival_rank_all']
 
-    #only non negative intervals possibly calls get in with negative intervals
+    get_fire_units = dataframe['is_fire']
+    get_transport_units = dataframe['is_transport']
+    get_code3 = dataframe['is_code3']
+    #only non negative intervals possibly calls get in with negative intervals. could be timezone differences
     get_alarm_ok = alarm.ge(0) | alarm.isna()
     get_turnout_ok = turnout.ge(0)| turnout.isna()
     get_travel_ok = travel.ge(0) | travel.isna()
     get_commit_ok = commit.ge(0) | commit.isna()
     get_total_ok = total.ge(0) | total.isna()
     get_from_alarm_ok = from_alarm.ge(0) | from_alarm.isna()
-
     ##these counts overlap, one bad row can fail two rules, so they do not add up
     ##to the total dropped. they tell you which rule is doing the work
     #print(f"started at {starting_count} rows")
@@ -188,37 +200,42 @@ def remove_unusable_calls(dataframe):
     print(f"  bad responsefrmalarm : {(~get_from_alarm_ok).sum():,}")
     print(f"  is cancelled during response?: {(dataframe['is_cancelled_en_route']).sum()}, ")
     print(f"  this many first arrivers: {len(first_arrivers)}")
+    print(f"  transport units included:    {(get_transport_units).sum():,}")
+    calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok & get_from_alarm_ok & get_fire_units & get_code3)
 
-    calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok & get_from_alarm_ok)
-
-    usable = dataframe[calls_to_keep].copy()
+    #usable = dataframe[calls_to_keep].copy()
     #print(f"ended at {len(usable)} rows ({len(usable) / starting_count:.1%} of input)")
-    return usable
+    return dataframe[calls_to_keep]
 
 #___________________________________________________________________________________
 ##cut down to a study period. both ends are inclusive so end="2019-05-31" keeps
 ##everything that happened on may 31st
 #broken
-def keep_dates(dataframe, start=None, end=None):
-    if start is None and end is None:
-        return dataframe
 
-    stamps = dataframe['received_time']
-    #keep = stamps.notna()
-    if start is not None:
-        keep = stamps >= pd.Timestamp(start)
-    if end is not None:
-        keep = stamps < pd.Timestamp(end) + pd.Timedelta(days=1)
+def keep_dates(dataframe, start_date=None, end_date=None): #yyyy-mm-dd
+
+    timestamps = dataframe['received_time']
+    keep = timestamps.notna()
+    n_missing = (~keep).sum()
+
+    if start_date is not None:
+        keep &= (timestamps >= pd.Timestamp(start_date))
+    if end_date is not None:
+        keep &= (timestamps < pd.Timestamp(end_date) + pd.Timedelta(days=1))
 
     windowed = dataframe[keep].copy()
-    print(f"date window {start} to {end} kept {len(windowed):,} of {len(dataframe):,} rows")
+
+    print(f"date window {start_date} to {end_date} kept {len(windowed):,} of {len(dataframe):,} rows")
+    if n_missing:
+        print(f"  {n_missing:,} rows dropped for missing/NaT received_time")
+
     return windowed
 
 
-def plotr(series, title=""):
+def plot_hist(series, title=""):
     #series = np.arcsinh(series)
     fig, ax1 = plt.subplots()
-    series.plot(kind='hist', bins=200, range=(0,2000), ax=ax1)
+    series.plot(kind='hist', bins=50, range=(0,3000), ax=ax1)
 
     # Add labels and show the plot
     ax1.set_title(title)
@@ -239,20 +256,70 @@ def plotr(series, title=""):
     fig.savefig("tr2.png", dpi=700)
     plt.close(fig)
 
-def plotr2(dataframe, title="response_intervals"):
+
+def plot_mult_hist(dataframe, title=""):
+
     cols = ["alarm_handling_seconds", "turnout_seconds", "travel_time_seconds", "total_response_seconds", "response_from_alarm_seconds", "commit_seconds"]
 
+    theme = load_theme('umbra_dark')
+    theme.apply()
+
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+
+    bins = np.arange(0, 3000 + 15, 15)
     for column, ax in zip(cols, axes.flat):
-        dataframe[column].plot(kind='hist', bins=200, range=(0,3000), ax=ax)
+        dataframe[column].plot(kind='hist', bins=bins, range=(0,3000), ax=ax)
         ax.set_title(f"{column} n={dataframe[column].notna().sum(): }")
         ax.set_xlabel('Seconds')
         ax.set_ylabel('Frequency')
 
     fig.suptitle(title)
     fig.tight_layout()
-    fig.savefig("t_r_i_nosymlog.png", dpi=700)
+    fig.savefig("t_r_i_nosymlog2019-2020.png", dpi=700)
     plt.close(fig)
+    theme.apply_transforms()
+
+
+#The shape of probability distribution
+def kde_sidebyside_vis_covid(dataframe):
+    theme = load_theme('umbra_dark')
+    theme.apply()
+
+    df1 = keep_dates(dataframe, start_date='2019-03-01', end_date='2020-07-01').copy()
+    df2 = keep_dates(dataframe, start_date='2020-03-01', end_date='2021-07-01').copy()
+
+    df1['Year Group'] = (f"Mar-July 2019 SF city all fire unit responses, to 911 calls(fire/ems)(pre-lockdown) n={len(df1)}")
+    df2['Year Group'] = (f"Mar-July 2020 SF city all fire unit responses, to 911 calls(fire/ems)(mid) n={len(df2)}")
+
+    combined_df = pd.concat([df1, df2], ignore_index=True) #seaborn is weird so i need to reset indexes
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    #a single kde plot showing both density distributions over travel time in seconds
+    #common_norm set to 0 so volume changes dont influence the "shape" of the distribution
+    sea.kdeplot(
+        data=combined_df,
+        x='travel_time_seconds',
+        hue='Year Group',
+        common_norm=False,
+        fill=True,
+        alpha=0.25,
+        clip=(0, 3000),
+        ax=ax
+    )
+
+    ax.set_xlim(0, 3000)
+    ax.set_xlabel("Travel Time Seconds(clipped to 0-3000s)")
+    ax.set_ylabel("Density (normailzed separately)")
+    ax.set_title('Mar-July2019 vs Mar-July2020, SF city fire, all fire vehicle responses to 911 calls(fire/ems) DRIVING TIME ONLY')
+
+    fig.savefig("covid_before_after_SfCityfire_all_units_travel_time_to_call.png")
+    plt.close(fig)
+    theme.apply_transforms()
+
+
+
+
 
 
 def data_printout(dataframe):
@@ -271,34 +338,37 @@ def main():
 
 
     dataframe = filter_columns(dataframe)
-    print(sorted(dataframe['station_area'].dropna().unique()))
+
+    dataframe = keep_dates(dataframe, start_date='2018-01-01', end_date='2021-6-01')
+    #print(sorted(dataframe['station_area'].dropna().unique()))
 
 
     dataframe = flag_cancelled(dataframe)
     dataframe = flag_unit_types(dataframe)
     dataframe = flag_code3(dataframe)
     dataframe = flag_arrival_order(dataframe)
-
+    #print(dataframe['original_priority'].unique())
 
     print("CLEANING")
     clean = remove_unusable_calls(dataframe)
 
-    ###NOTE
-    #Two remaining type issues in that listing worth your attention: als_unit is still str holding 'true'/'false',
-    #and number_of_alarms/dispatch_sequence are still str when they're numeric.
-    #Both will bite the moment you filter on them.
+    ###NOTES
+    #als_unit is still str holding 'true'/'false',
+
+    #and number_of_alarms/dispatch_sequence are still str when they're numeric. FIX THIS
 
     data_printout(clean)
-    plotr2(clean)
 
-    #plotr(clean['total_resonse_seconds'])
+    #plot_mult_hist(dataframe, title="response_intervals")
+    kde_sidebyside_vis_covid(clean)
+
     end_time = time.perf_counter()
     total_prog_time = end_time - start_time
 
     print(f"started at {start_len} ended at {len(clean)}")
     print(f"total program time {int(total_prog_time)} seconds")
-    #VARIABLES.WORKING_CAD_PARQ.parent.mkdir(parents=True, exist_ok=True)
-    #clean.to_parquet(VARIABLES.WORKING_CAD_PARQ)
+    VARIABLES.POST_ET_CAD_PARQ.parent.mkdir(parents=True, exist_ok=True)
+    clean.to_parquet(VARIABLES.POST_ET_CAD_PARQ)
     #print(f"wrote {VARIABLES.WORKING_CAD_PARQ} ({len(clean):,} rows)")
 
 
