@@ -15,7 +15,7 @@ import time
 
 
 FIRE_UNITS = ['INVESTIGATION', 'AIRPORT', 'MEDIC', 'SUPPORT', 'CHIEF', 'CP', 'ENGINE', 'TRUCK', 'RESCUE SQUAD', 'RESCUE CAPTAIN']
-SUPPRESSION_UNITS = ['ENGINE', 'TRUCK', 'SUPPORT']
+SUPPRESSION_UNITS = ['ENGINE', 'TRUCK']
 TRANSPORT_UNITS = ['MEDIC', 'PRIVATE']  #PRIVATE is the only non fire unit
 COMMAND_UNITS = ['CP', 'CHIEF']
 
@@ -77,6 +77,7 @@ def flag_unit_types(dataframe):
     dataframe['is_fire'] = dataframe['unit_type'].isin(FIRE_UNITS)
     dataframe['is_command'] = dataframe['unit_type'].isin(COMMAND_UNITS)
     dataframe['is_transport'] = dataframe['unit_type'].isin(TRANSPORT_UNITS)
+    dataframe['is_suppression'] = dataframe['unit_type'].isin(SUPPRESSION_UNITS)
 
     ##anything that landed in no group is unaccounted for unit_type
     unknown = dataframe[~dataframe['is_fire'] & ~dataframe['is_command'] & ~dataframe['is_transport']]
@@ -136,19 +137,19 @@ def flag_cancelled(dataframe):
 ## memory killer
 def flag_arrival_order(dataframe):
     print(f"length before flagging arrival{len(dataframe)}")
-    dataframe = dataframe.sort_values(['call_id', 'onscene_time'])
+    dataframe = dataframe.sort_values(['incident_id', 'onscene_time'])
 
     arrived = dataframe['onscene_time'].notna()
-    dataframe['arrival_rank_all'] = dataframe[arrived].groupby('call_id').cumcount() + 1
+    dataframe['arrival_rank_all'] = dataframe[arrived].groupby('incident_id').cumcount() + 1
 
-    one_call = dataframe.groupby('call_id')
+    one_call = dataframe.groupby('incident_id')
     dataframe['units_on_incident'] = one_call['unit_id'].transform('size')
     dataframe['units_arrived_on_incident'] = one_call['arrival_rank_all'].transform('max').fillna(0).astype('int64')
 
     ##what kind of unit actually got there first
     first_rows = dataframe[dataframe['arrival_rank_all'] == 1]
-    first_types = first_rows.set_index('call_id')['unit_type']
-    dataframe['first_unit_type'] = dataframe['call_id'].map(first_types)
+    first_types = first_rows.set_index('incident_id')['unit_type']
+    dataframe['first_unit_type'] = dataframe['incident_id'].map(first_types)
 
     ##did a fire unit respond at all, and did ems beat them there
     dataframe['fire_responded'] = one_call['is_fire'].transform('any')
@@ -160,7 +161,7 @@ def flag_arrival_order(dataframe):
 #memory killer
 def remove_unusable_calls(dataframe):
 
-    get_not_duplicate = ~dataframe.duplicated(subset=["call_id", "unit_id", "dispatch_time"], keep="first")
+    get_not_duplicate = ~dataframe.duplicated(subset=["incident_id", "unit_id", "dispatch_time"], keep="first")
 
     get_dispatch = dataframe['dispatch_time'].notna()
     get_location = dataframe['call_latitude'].notna() & dataframe['call_longitude'].notna()
@@ -174,15 +175,18 @@ def remove_unusable_calls(dataframe):
     total = dataframe['total_response_seconds']
     from_alarm = dataframe['response_from_alarm_seconds']
 
-    first_arrivers = dataframe['arrival_rank_all']
 
+    get_first_arrivers = dataframe['arrival_rank_all'].eq(1)
+    get_suppression_units = dataframe ['is_suppression']
     get_fire_units = dataframe['is_fire']
     get_transport_units = dataframe['is_transport']
     get_code3 = dataframe['is_code3']
     #only non negative intervals possibly calls get in with negative intervals. could be timezone differences
     get_alarm_ok = alarm.ge(0) | alarm.isna()
     get_turnout_ok = turnout.ge(0)| turnout.isna()
-    get_travel_ok = travel.ge(0) | travel.isna()
+
+    get_travel_ok = travel.between(1,2000) | travel.isna()
+
     get_commit_ok = commit.ge(0) | commit.isna()
     get_total_ok = total.ge(0) | total.isna()
     get_from_alarm_ok = from_alarm.ge(0) | from_alarm.isna()
@@ -199,9 +203,10 @@ def remove_unusable_calls(dataframe):
     print(f"  bad responseseconds : {(~get_total_ok).sum():,}")
     print(f"  bad responsefrmalarm : {(~get_from_alarm_ok).sum():,}")
     print(f"  is cancelled during response?: {(dataframe['is_cancelled_en_route']).sum()}, ")
-    print(f"  this many first arrivers: {len(first_arrivers)}")
+    print(f"  this many first arrivers: {len(get_first_arrivers)}")
+    print(f"  this many suppression: {len(get_suppression_units)}")
     print(f"  transport units included:    {(get_transport_units).sum():,}")
-    calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok & get_from_alarm_ok & get_fire_units & get_code3)
+    calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok & get_from_alarm_ok & get_suppression_units & get_code3 & get_first_arrivers)
 
     #usable = dataframe[calls_to_keep].copy()
     #print(f"ended at {len(usable)} rows ({len(usable) / starting_count:.1%} of input)")
@@ -235,7 +240,7 @@ def keep_dates(dataframe, start_date=None, end_date=None): #yyyy-mm-dd
 def plot_hist(series, title=""):
     #series = np.arcsinh(series)
     fig, ax1 = plt.subplots()
-    series.plot(kind='hist', bins=50, range=(0,3000), ax=ax1)
+    series.plot(kind='hist', bins=50, range=(0,2000), ax=ax1)
 
     # Add labels and show the plot
     ax1.set_title(title)
@@ -280,18 +285,19 @@ def plot_mult_hist(dataframe, title=""):
     theme.apply_transforms()
 
 
-#The shape of probability distribution
+#The shape of probability distribution normalized so every kde has 1 under its curve
 def kde_sidebyside_vis_covid(dataframe):
     theme = load_theme('umbra_dark')
     theme.apply()
 
-    df1 = keep_dates(dataframe, start_date='2019-03-01', end_date='2020-07-01').copy()
-    df2 = keep_dates(dataframe, start_date='2020-03-01', end_date='2021-07-01').copy()
+    df1 = keep_dates(dataframe, start_date='2019-03-02', end_date='2020-02-01').copy()
+    df2 = keep_dates(dataframe, start_date='2020-03-01', end_date='2021-02-01').copy()
+    df3 = keep_dates(dataframe, start_date='2022-03-01', end_date='2023-02-01').copy()
 
-    df1['Year Group'] = (f"Mar-July 2019 SF city all fire unit responses, to 911 calls(fire/ems)(pre-lockdown) n={len(df1)}")
-    df2['Year Group'] = (f"Mar-July 2020 SF city all fire unit responses, to 911 calls(fire/ems)(mid) n={len(df2)}")
-
-    combined_df = pd.concat([df1, df2], ignore_index=True) #seaborn is weird so i need to reset indexes
+    df1['year group'] = (f"Mar-Feb 2019-2020 (pre-shelter in place) first arriving suppression unit responses to 911 calls n={len(df1)}")
+    df2['year group'] = (f"Mar-Feb 2020-2021 (shelter in place) first arriving suppression unit responses to 911 calls n={len(df2)}")
+    df3['year group'] = (f"Mar-Feb 2022-2023 (post-shelter in place) first arriving suppression unit responses to 911 calls n={len(df3)}")
+    combined_df = pd.concat([df1, df2, df3], ignore_index=True) #seaborn is weird so i need to reset indexes
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
@@ -300,20 +306,20 @@ def kde_sidebyside_vis_covid(dataframe):
     sea.kdeplot(
         data=combined_df,
         x='travel_time_seconds',
-        hue='Year Group',
+        hue='year group',
         common_norm=False,
         fill=True,
         alpha=0.25,
-        clip=(0, 3000),
+        cut=0,
         ax=ax
     )
 
-    ax.set_xlim(0, 3000)
-    ax.set_xlabel("Travel Time Seconds(clipped to 0-3000s)")
-    ax.set_ylabel("Density (normailzed separately)")
-    ax.set_title('Mar-July2019 vs Mar-July2020, SF city fire, all fire vehicle responses to 911 calls(fire/ems) DRIVING TIME ONLY')
+    ax.set_xlim(0, 2000)
+    ax.set_xlabel("Travel Time Seconds(clipped to 1-2000s to control outlier stamps)")
+    ax.set_ylabel("Probability Density")
+    ax.set_title('SFFD Suppresion Units, Lights and Sirens Travel Time To 911 Scene(Arrived First)')
 
-    fig.savefig("covid_before_after_SfCityfire_all_units_travel_time_to_call.png")
+    fig.savefig("covid_before_after_SfCityfire_suppr_units_travel_time_to_call.png", dpi = 700)
     plt.close(fig)
     theme.apply_transforms()
 
@@ -339,7 +345,7 @@ def main():
 
     dataframe = filter_columns(dataframe)
 
-    dataframe = keep_dates(dataframe, start_date='2018-01-01', end_date='2021-6-01')
+    dataframe = keep_dates(dataframe, start_date='2018-01-01', end_date='2023-01-02')
     #print(sorted(dataframe['station_area'].dropna().unique()))
 
 
