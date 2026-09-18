@@ -61,10 +61,9 @@ TIME_INTERVALS = [
     ("commit_seconds",          "dispatch_time", "available_time"), # how long the unit was tied up
 ]
 
-# ---- data validity bounds -------------------------------------------------
+# ---- data validity checks --------------------
 # These reject impossible records (clock errors, units marked on scene by a
-# supervisor hours later). They are NOT performance filters -- do not use them
-# to trim the tails you dislike, or your percentiles stop being percentiles.
+# supervisor hours later). They are NOT performance filters
 MAX_ALARM_HANDLING_SECONDS = 30 * 60
 MAX_TURNOUT_SECONDS        = 30 * 60
 MAX_TRAVEL_SECONDS         = 30 * 60

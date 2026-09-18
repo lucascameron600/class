@@ -11,7 +11,7 @@ def main():
 
     all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
 
-    mask = (all_resp_2018_23['is_suppression'] & all_resp_2018_23['is_code3'])
+    mask = (all_resp_2018_23['is_fire'] & all_resp_2018_23['is_code3'])
     clean = all_resp_2018_23[mask]
 
     kde_sidebyside_vis_covid(clean, "all transport unit", "SF Transporting Units")
