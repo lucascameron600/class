@@ -10,13 +10,13 @@ import numpy as np
 def main():
     all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
 
-    mask = (all_resp_2018_23['is_suppression'] & all_resp_2018_23['is_code3'])
+    mask = (all_resp_2018_23['is_suppression'] & all_resp_2018_23['is_code3'] & all_resp_2018_23['arrival_rank_all'].eq(1))
     clean = all_resp_2018_23[mask]
 
 
     kde_sidebyside_vis_covid(clean, "all suppression unit", "SF Suppression Units")
     plot_multi_hist(clean, "Response Intervals, suppression units, Code 3 only")
-    plot_hist(clean['total_response_seconds'], 'Total_response_seconds, suppression only, code 3 vs log transformed')
+    plot_hist(clean['total_response_seconds'], 'Total_response_seconds, suppression only, code 3')
 
 
 #------------------------------------------------------
