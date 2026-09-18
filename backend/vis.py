@@ -8,17 +8,20 @@ import numpy as np
 
 
 def main():
-
     all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
 
     mask = (all_resp_2018_23['is_suppression'] & all_resp_2018_23['is_code3'])
     clean = all_resp_2018_23[mask]
 
+
     kde_sidebyside_vis_covid(clean, "all suppression unit", "SF Suppression Units")
-    plot_multi_hist(clean, "Response Intervals Code 3 Suppression Unit -> Scene")
+    plot_multi_hist(clean, "Response Intervals, suppression units, Code 3 only")
+    plot_hist(clean['total_response_seconds'], 'Total_response_seconds, suppression only, code 3 vs log transformed')
 
 
-
+#------------------------------------------------------
+#-----------------PLOTTING_FUNCS-----------------------
+#------------------------------------------------------
 def plot_hist(series, title=""):
     s1 = np.log(series)
     fig, (ax1, ax2) = plt.subplots(1,2, figsize=(12,4))
@@ -26,18 +29,22 @@ def plot_hist(series, title=""):
 
     # Add labels and show the plot
     ax1.set_title(title)
-    #ax1.set_xscale('symlog')
-    ax1.set_xlabel('Seconds')
+    ax1.axvline(s1.median(), color='red')
+    ax1.axvline(s1.mean(), color='tomato', linestyle='--')
+    ax1.set_xlabel('Seconds(Log Transformed)')
     ax1.set_ylabel('Frequency')
 
+   #_________________________________
 
     series.plot(kind='hist', bins=200, ax=ax2)
 
     ax2.set_title(title)
+    ax2.axvline(series.median(), color='red')
+    ax2.axvline(series.mean(), color='tomato', linestyle='--')
     ax2.set_xlabel('Seconds')
     ax2.set_ylabel('Frequency')
 
-    fig.savefig(f"{title}.png", dpi=700)
+    fig.savefig(f"{title}.png", dpi=300)
     plt.close(fig)
 
 
@@ -46,22 +53,22 @@ def plot_multi_hist(dataframe, title=""):
     cols = ["alarm_handling_seconds", "turnout_seconds", "travel_time_seconds", "total_response_seconds", "response_from_alarm_seconds", "commit_seconds"]
 
     theme = load_theme('umbra_dark')
-
     theme.apply()
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 
-    bins = np.arange(0, 3000 + 15, 15) #arbitrary 15min bin length, switch for data inspection
+    bins = np.arange(0, 5000 + 15, 15) #arbitrary 15min bin length, switch for data inspection
     for column, ax in zip(cols, axes.flat):
         dataframe[column].plot(kind='hist', bins=bins, ax=ax)
         ax.set_title(f"{column} n={dataframe[column].notna().sum(): }")
+        ax.set_xlim(0,3000)
         ax.set_xlabel('Seconds')
         ax.set_ylabel('Frequency')
 
     fig.suptitle(title)
     plt.xlim(0,5000)
     fig.tight_layout()
-    fig.savefig(f"{title}.png", dpi=700)
+    fig.savefig(f"{title}.png", dpi=300)
     plt.close(fig)
     theme.apply_transforms()
 
@@ -94,7 +101,7 @@ def kde_sidebyside_vis_covid(dataframe, describe='', title=''):
     ax.set_xlabel("Travel Time Seconds(clipped to 1-2000s to control outlier stamps)")
     ax.set_ylabel("Probability Density")
     ax.set_title(f'{title}, Lights and Sirens Travel Time To 911 Scene')
-    fig.savefig("covid_before_after_SFFD_transporting_units_travel_time_to_call.png", dpi = 700)
+    fig.savefig("covid_before_after_SFFD_transporting_units_travel_time_to_call.png", dpi = 300)
     plt.close(fig)
     theme.apply_transforms()
 
