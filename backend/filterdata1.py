@@ -1,25 +1,11 @@
 import pandas as pd
-import numpy as np
 import geopandas as gpd
 import VARIABLES
-import seaborn as sea
-import matplotlib.pyplot as plt
-from aquarel import load_theme
 import time
 
 ##reads the raw CAD parquet, normalizes it, flags it, and exports a parquet.
 ##this file only drops rows that are useless or impossible
-
-
 #move to VARIABLES later
-
-
-FIRE_UNITS = ['INVESTIGATION', 'AIRPORT', 'MEDIC', 'SUPPORT', 'CHIEF', 'CP', 'ENGINE', 'TRUCK', 'RESCUE SQUAD', 'RESCUE CAPTAIN']
-SUPPRESSION_UNITS = ['ENGINE', 'TRUCK']
-TRANSPORT_UNITS = ['MEDIC', 'PRIVATE']  #PRIVATE is the only non fire unit
-PRIVATE_UNITS = ['PRIVATE']
-COMMAND_UNITS = ['CP', 'CHIEF']
-
 
 PRIORITY_COLUMN = "final_priority"  #sf final priority is the 2 or 3 that says emergency or no emergency
 EMERGENT_PRIORITY_CODES = ["3"]                 #sf counts P3 as a code 3 emergency response
@@ -75,10 +61,11 @@ def filter_columns(dataframe):
 
 #_________________________________________________________
 def flag_unit_types(dataframe):
-    dataframe['is_fire'] = dataframe['unit_type'].isin(FIRE_UNITS)
-    dataframe['is_command'] = dataframe['unit_type'].isin(COMMAND_UNITS)
-    dataframe['is_transport'] = dataframe['unit_type'].isin(TRANSPORT_UNITS)
-    dataframe['is_suppression'] = dataframe['unit_type'].isin(SUPPRESSION_UNITS)
+    dataframe['is_fire'] = dataframe['unit_type'].isin(VARIABLES.ALL_FIRE_UNITS)
+    dataframe['is_command'] = dataframe['unit_type'].isin(VARIABLES.COMMAND_UNITS)
+    dataframe['is_transport'] = dataframe['unit_type'].isin(VARIABLES.TRANSPORT_UNITS)
+    dataframe['is_suppression'] = dataframe['unit_type'].isin(VARIABLES.SUPPRESSION_UNITS)
+    dataframe['is_private'] = dataframe['unit_type'].isin(VARIABLES.PRIVATE_UNITS)
 
     ##anything that landed in no group is unaccounted for unit_type
     unknown = dataframe[~dataframe['is_fire'] & ~dataframe['is_command'] & ~dataframe['is_transport']]
@@ -119,11 +106,8 @@ def flag_cancelled(dataframe):
 
 #NEXT
 
-#def flag_mutual_aid_ems()
 
 #def flag_response_in_first_due():
-
-
 
 #outside its own station area for a response, (longer times dont count for response time calculation)
 #def flag_mutual_aid_fire(dataframe):
@@ -158,7 +142,7 @@ def flag_arrival_order(dataframe):
 
     ##did a fire unit respond at all, and did ems beat them there
     dataframe['fire_responded'] = one_call['is_fire'].transform('any')  #what???
-    dataframe['suppression_beaten_by_ems'] = (dataframe['first_unit_type'].notna() & ~dataframe['first_unit_type'].isin(SUPPRESSION_UNITS))
+    dataframe['suppression_beaten_by_ems'] = (dataframe['first_unit_type'].notna() & ~dataframe['first_unit_type'].isin(VARIABLES.SUPPRESSION_UNITS))
 
     print(f"flagged arrival order over all units now have {len(dataframe)}")
     return dataframe
@@ -188,16 +172,18 @@ def remove_unusable_calls(dataframe):
     get_suppression_units = dataframe ['is_suppression']
     get_fire_units = dataframe['is_fire']
     get_transport_units = dataframe['is_transport']
+    get_private_units = dataframe['is_private']
+
     get_code3 = dataframe['is_code3']
+
     #only non negative intervals possibly calls get in with negative intervals. could be timezone differences
     get_alarm_ok = alarm.ge(0) | alarm.isna()
     get_turnout_ok = turnout.ge(0)| turnout.isna()
-
     get_travel_ok = travel.between(1,2000) | travel.isna()
-
     get_commit_ok = commit.ge(0) | commit.isna()
     get_total_ok = total.ge(0) | total.isna()
     get_from_alarm_ok = from_alarm.ge(0) | from_alarm.isna()
+
     ##these counts overlap, one bad row can fail two rules, so they do not add up
     ##to the total dropped. they tell you which rule is doing the work
     #print(f"started at {starting_count} rows")
@@ -214,7 +200,9 @@ def remove_unusable_calls(dataframe):
     print(f"  this many first arrivers: {len(get_first_arrivers)}")
     print(f"  this many suppression: {len(get_suppression_units)}")
     print(f"  transport units included:    {(get_transport_units).sum():,}")
-    calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok & get_from_alarm_ok & get_transport_units & get_code3)
+    calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok
+                     & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok
+                     & get_from_alarm_ok)
 
     #usable = dataframe[calls_to_keep].copy()
     #print(f"ended at {len(usable)} rows ({len(usable) / starting_count:.1%} of input)")
@@ -244,83 +232,6 @@ def keep_dates(dataframe, start_date=None, end_date=None): #yyyy-mm-dd
     return windowed
 
 
-def plot_hist(series, title=""):
-    s1 = np.log(series)
-    fig, (ax1, ax2) = plt.subplots(1,2, figsize=(12,4))
-    s1.plot(kind='hist', bins=200, ax=ax1)
-
-    # Add labels and show the plot
-    ax1.set_title(title)
-    #ax1.set_xscale('symlog')
-    ax1.set_xlabel('Seconds')
-    ax1.set_ylabel('Frequency')
-
-
-    series.plot(kind='hist', bins=200, ax=ax2)
-
-    ax2.set_title(title)
-    ax2.set_xlabel('Seconds')
-    ax2.set_ylabel('Frequency')
-
-    fig.savefig(f"{title}.png", dpi=700)
-    plt.close(fig)
-
-
-def plot_mult_hist(dataframe, title=""):
-
-    cols = ["alarm_handling_seconds", "turnout_seconds", "travel_time_seconds", "total_response_seconds", "response_from_alarm_seconds", "commit_seconds"]
-
-    theme = load_theme('umbra_dark')
-
-    theme.apply()
-
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-
-    bins = np.arange(0, 3000 + 15, 15) #arbitrary 15min bin length, switch for data inspection
-    for column, ax in zip(cols, axes.flat):
-        dataframe[column].plot(kind='hist', bins=bins, range=(0,3000), ax=ax)
-        ax.set_title(f"{column} n={dataframe[column].notna().sum(): }")
-        ax.set_xlabel('Seconds')
-        ax.set_ylabel('Frequency')
-
-    fig.suptitle(title)
-    fig.tight_layout()
-    fig.savefig(f"{title}.png", dpi=700)
-    plt.close(fig)
-    theme.apply_transforms()
-
-
-#The shape of probability distribution normalized so every kde has 1 under its curve
-def kde_sidebyside_vis_covid(dataframe):
-    theme = load_theme('umbra_dark')
-    theme.apply()
-
-    df1 = keep_dates(dataframe, start_date='2019-03-02', end_date='2020-02-01').copy()
-    mean_val = df1['travel_time_seconds'].mean()
-    median_val = df1['travel_time_seconds'].median()
-    #df2 = keep_dates(dataframe, start_date='2020-03-01', end_date='2021-02-01').copy()
-    #df3 = keep_dates(dataframe, start_date='2022-03-01', end_date='2023-02-01').copy()
-
-    df1['year group'] = (f"Mar-Feb 2019-2020 (pre-shelter in place) first arriving suppression unit responses to 911 calls n={len(df1)}")
-    #df2['year group'] = (f"Mar-Feb 2020-2021 (shelter in place) first arriving suppression unit responses to 911 calls n={len(df2)}")
-    #df3['year group'] = (f"Mar-Feb 2022-2023 (post-shelter in place) first arriving suppression unit responses to 911 calls n={len(df3)}")
-    #combined_df = pd.concat([df1, df2, df3], ignore_index=True) #seaborn is weird so i need to reset indexes
-
-    fig, ax = plt.subplots(figsize=(12, 7))
-
-    #a single kde plot showing both density distributions over travel time in seconds
-    #common_norm set to 0 so volume changes dont influence the "shape" of the distribution
-    sea.kdeplot(data=df1, x='travel_time_seconds', log_scale=10, hue='year group', common_norm=False, fill=True, alpha=0.20, cut=0, ax=ax)
-    ax.axvline(mean_val, color='red', linestyle='--')
-    ax.axvline(median_val, color='red')
-    ax.set_xlim(10, 2000)
-    ax.set_xlabel("Travel Time Seconds(clipped to 1-2000s to control outlier stamps)")
-    ax.set_ylabel("Probability Density")
-    ax.set_title('SFFD Suppresion Units, Lights and Sirens Travel Time To 911 Scene(Arrived First)')
-
-    fig.savefig("covid_before_after_SfCityfire_priv_units_travel_time_to_call.png", dpi = 700)
-    plt.close(fig)
-    theme.apply_transforms()
 
 
 
@@ -338,12 +249,10 @@ def main():
     dataframe = pd.read_parquet(VARIABLES.RAW_CAD_FILE)
     start_len = len(dataframe)
 
-
     dataframe = filter_columns(dataframe)
 
     dataframe = keep_dates(dataframe, start_date='2018-01-01', end_date='2023-01-02')
     #print(sorted(dataframe['station_area'].dropna().unique()))
-
 
     dataframe = flag_cancelled(dataframe)
     dataframe = flag_unit_types(dataframe)
@@ -356,15 +265,17 @@ def main():
 
     ###NOTES
     #als_unit is still str holding 'true'/'false',
-
     #and number_of_alarms/dispatch_sequence are still str when they're numeric. FIX THIS
+    #need to add in area first due responses
+    #need to add medic at hospital flag per transport unit call
+    #
 
     data_printout(clean)
 
     #plot_mult_hist(dataframe, title="response_intervals")
-    kde_sidebyside_vis_covid(clean)
-    plot_mult_hist(clean, "Response Intervals")
-    plot_hist(clean['travel_time_seconds'], "Travel Time Seconds")
+    #kde_sidebyside_vis_covid(clean, "all transport unit", "SF Transporting Units")
+    #plot_mult_hist(clean, "Response Intervals all transport unit")
+    #plot_hist(clean['travel_time_seconds'], "Travel Time Seconds")
     end_time = time.perf_counter()
     total_prog_time = end_time - start_time
 
@@ -372,7 +283,7 @@ def main():
     print(f"total program time {int(total_prog_time)} seconds")
     VARIABLES.POST_ET_CAD_PARQ.parent.mkdir(parents=True, exist_ok=True)
     clean.to_parquet(VARIABLES.POST_ET_CAD_PARQ)
-    #print(f"wrote {VARIABLES.WORKING_CAD_PARQ} ({len(clean):,} rows)")
+    print(f"wrote {VARIABLES.POST_ET_CAD_PARQ} ({len(clean):,} rows)")
 
 
 if __name__ == '__main__':
