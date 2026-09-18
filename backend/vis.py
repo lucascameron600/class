@@ -11,11 +11,11 @@ def main():
 
     all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
 
-    mask = (all_resp_2018_23['is_fire'] & all_resp_2018_23['is_code3'])
+    mask = (all_resp_2018_23['is_suppression'] & all_resp_2018_23['is_code3'])
     clean = all_resp_2018_23[mask]
 
-    kde_sidebyside_vis_covid(clean, "all transport unit", "SF Transporting Units")
-    plot_mult_hist(clean, "Response Intervals all transport unit")
+    kde_sidebyside_vis_covid(clean, "all suppression unit", "SF Suppression Units")
+    plot_multi_hist(clean, "Response Intervals Code 3 Suppression Unit -> Scene")
 
 
 
@@ -41,7 +41,7 @@ def plot_hist(series, title=""):
     plt.close(fig)
 
 
-def plot_mult_hist(dataframe, title=""):
+def plot_multi_hist(dataframe, title=""):
 
     cols = ["alarm_handling_seconds", "turnout_seconds", "travel_time_seconds", "total_response_seconds", "response_from_alarm_seconds", "commit_seconds"]
 
@@ -59,7 +59,7 @@ def plot_mult_hist(dataframe, title=""):
         ax.set_ylabel('Frequency')
 
     fig.suptitle(title)
-    plt.xlim(0,2000)
+    plt.xlim(0,5000)
     fig.tight_layout()
     fig.savefig(f"{title}.png", dpi=700)
     plt.close(fig)
