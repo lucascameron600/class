@@ -17,23 +17,24 @@ import time
 FIRE_UNITS = ['INVESTIGATION', 'AIRPORT', 'MEDIC', 'SUPPORT', 'CHIEF', 'CP', 'ENGINE', 'TRUCK', 'RESCUE SQUAD', 'RESCUE CAPTAIN']
 SUPPRESSION_UNITS = ['ENGINE', 'TRUCK']
 TRANSPORT_UNITS = ['MEDIC', 'PRIVATE']  #PRIVATE is the only non fire unit
+PRIVATE_UNITS = ['PRIVATE']
 COMMAND_UNITS = ['CP', 'CHIEF']
 
 
-PRIORITY_COLUMN = "final_priority"  #sf final priority is the 2 or 3 that says emergency
-EMERGENT_PRIORITY_CODES = ["3"]                 #sf counts 3 as a code 3 emergency response
+PRIORITY_COLUMN = "final_priority"  #sf final priority is the 2 or 3 that says emergency or no emergency
+EMERGENT_PRIORITY_CODES = ["3"]                 #sf counts P3 as a code 3 emergency response
 #NON_EMERGENT_PRIORITY_CODES = ["2", "1", "A"]
 
 ##cad data come in as text or numbers depending on the export.
-##  " E10" -> "E10"   10.0 -> "10" for comparison
-##astype(str) on a float column gives '3.0' which matches nothing
+##  " E10" -> "E10"   10.0 -> "10"
+##astype(str) on a float column gives 3.0 which matches nothing
 def normalize_code(series):
     series = series.astype("string").str.strip().str.upper()
     series = series.str.replace(r"\.0$", "", regex=True)
     return series.where(series.str.len() > 0, other=pd.NA)
 
 
-##pull the lon lat out of the WKT point column
+##pull the lon lat out of the point column
 def extract_points(wkt_series):
     cleaned = wkt_series.astype("string").str.strip()
     cleaned = cleaned.where(cleaned.str.len() > 0, other=pd.NA)
@@ -43,7 +44,7 @@ def extract_points(wkt_series):
 #____________________________________
 ##filters out, rename, and tag new columns
 def filter_columns(dataframe):
-    dataframe = dataframe.rename(columns=VARIABLES.MAP_CAD_COLUMNS).reset_index(drop=True)
+    dataframe = dataframe.rename(columns=VARIABLES.MAP_CAD_COLUMNS).reset_index(drop=True) #No-op did because originally was a after another one
 
     ##export date and time
     time_cols = ["received_time", "dispatch_time", "enroute_time", "onscene_time","transport_time", "available_time"]
@@ -110,6 +111,10 @@ def flag_cancelled(dataframe):
     return dataframe
 
 
+#def flag_medic_available():
+
+
+
 #def flag_
 
 #NEXT
@@ -152,11 +157,14 @@ def flag_arrival_order(dataframe):
     dataframe['first_unit_type'] = dataframe['incident_id'].map(first_types)
 
     ##did a fire unit respond at all, and did ems beat them there
-    dataframe['fire_responded'] = one_call['is_fire'].transform('any')
+    dataframe['fire_responded'] = one_call['is_fire'].transform('any')  #what???
     dataframe['suppression_beaten_by_ems'] = (dataframe['first_unit_type'].notna() & ~dataframe['first_unit_type'].isin(SUPPRESSION_UNITS))
 
     print(f"flagged arrival order over all units now have {len(dataframe)}")
     return dataframe
+
+
+
 
 #memory killer
 def remove_unusable_calls(dataframe):
@@ -206,7 +214,7 @@ def remove_unusable_calls(dataframe):
     print(f"  this many first arrivers: {len(get_first_arrivers)}")
     print(f"  this many suppression: {len(get_suppression_units)}")
     print(f"  transport units included:    {(get_transport_units).sum():,}")
-    calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok & get_from_alarm_ok & get_suppression_units & get_code3 & get_first_arrivers)
+    calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok & get_from_alarm_ok & get_transport_units & get_code3)
 
     #usable = dataframe[calls_to_keep].copy()
     #print(f"ended at {len(usable)} rows ({len(usable) / starting_count:.1%} of input)")
@@ -215,7 +223,6 @@ def remove_unusable_calls(dataframe):
 #___________________________________________________________________________________
 ##cut down to a study period. both ends are inclusive so end="2019-05-31" keeps
 ##everything that happened on may 31st
-#broken
 
 def keep_dates(dataframe, start_date=None, end_date=None): #yyyy-mm-dd
 
@@ -238,27 +245,24 @@ def keep_dates(dataframe, start_date=None, end_date=None): #yyyy-mm-dd
 
 
 def plot_hist(series, title=""):
-    #series = np.arcsinh(series)
-    fig, ax1 = plt.subplots()
-    series.plot(kind='hist', bins=50, range=(0,2000), ax=ax1)
+    s1 = np.log(series)
+    fig, (ax1, ax2) = plt.subplots(1,2, figsize=(12,4))
+    s1.plot(kind='hist', bins=200, ax=ax1)
 
     # Add labels and show the plot
     ax1.set_title(title)
-    ax1.set_xscale('symlog')
+    #ax1.set_xscale('symlog')
     ax1.set_xlabel('Seconds')
     ax1.set_ylabel('Frequency')
 
-    fig.savefig("tr1.png", dpi=700)
-    plt.close(fig)
 
-    fig, ax2 = plt.subplots()
-    series.plot(kind='hist', bins=200, range=(0,2000), ax=ax2)
+    series.plot(kind='hist', bins=200, ax=ax2)
 
     ax2.set_title(title)
     ax2.set_xlabel('Seconds')
     ax2.set_ylabel('Frequency')
 
-    fig.savefig("tr2.png", dpi=700)
+    fig.savefig(f"{title}.png", dpi=700)
     plt.close(fig)
 
 
@@ -267,11 +271,12 @@ def plot_mult_hist(dataframe, title=""):
     cols = ["alarm_handling_seconds", "turnout_seconds", "travel_time_seconds", "total_response_seconds", "response_from_alarm_seconds", "commit_seconds"]
 
     theme = load_theme('umbra_dark')
+
     theme.apply()
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 
-    bins = np.arange(0, 3000 + 15, 15)
+    bins = np.arange(0, 3000 + 15, 15) #arbitrary 15min bin length, switch for data inspection
     for column, ax in zip(cols, axes.flat):
         dataframe[column].plot(kind='hist', bins=bins, range=(0,3000), ax=ax)
         ax.set_title(f"{column} n={dataframe[column].notna().sum(): }")
@@ -280,7 +285,7 @@ def plot_mult_hist(dataframe, title=""):
 
     fig.suptitle(title)
     fig.tight_layout()
-    fig.savefig("t_r_i_nosymlog2019-2020.png", dpi=700)
+    fig.savefig(f"{title}.png", dpi=700)
     plt.close(fig)
     theme.apply_transforms()
 
@@ -291,40 +296,31 @@ def kde_sidebyside_vis_covid(dataframe):
     theme.apply()
 
     df1 = keep_dates(dataframe, start_date='2019-03-02', end_date='2020-02-01').copy()
-    df2 = keep_dates(dataframe, start_date='2020-03-01', end_date='2021-02-01').copy()
-    df3 = keep_dates(dataframe, start_date='2022-03-01', end_date='2023-02-01').copy()
+    mean_val = df1['travel_time_seconds'].mean()
+    median_val = df1['travel_time_seconds'].median()
+    #df2 = keep_dates(dataframe, start_date='2020-03-01', end_date='2021-02-01').copy()
+    #df3 = keep_dates(dataframe, start_date='2022-03-01', end_date='2023-02-01').copy()
 
     df1['year group'] = (f"Mar-Feb 2019-2020 (pre-shelter in place) first arriving suppression unit responses to 911 calls n={len(df1)}")
-    df2['year group'] = (f"Mar-Feb 2020-2021 (shelter in place) first arriving suppression unit responses to 911 calls n={len(df2)}")
-    df3['year group'] = (f"Mar-Feb 2022-2023 (post-shelter in place) first arriving suppression unit responses to 911 calls n={len(df3)}")
-    combined_df = pd.concat([df1, df2, df3], ignore_index=True) #seaborn is weird so i need to reset indexes
+    #df2['year group'] = (f"Mar-Feb 2020-2021 (shelter in place) first arriving suppression unit responses to 911 calls n={len(df2)}")
+    #df3['year group'] = (f"Mar-Feb 2022-2023 (post-shelter in place) first arriving suppression unit responses to 911 calls n={len(df3)}")
+    #combined_df = pd.concat([df1, df2, df3], ignore_index=True) #seaborn is weird so i need to reset indexes
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
     #a single kde plot showing both density distributions over travel time in seconds
     #common_norm set to 0 so volume changes dont influence the "shape" of the distribution
-    sea.kdeplot(
-        data=combined_df,
-        x='travel_time_seconds',
-        hue='year group',
-        common_norm=False,
-        fill=True,
-        alpha=0.25,
-        cut=0,
-        ax=ax
-    )
-
-    ax.set_xlim(0, 2000)
+    sea.kdeplot(data=df1, x='travel_time_seconds', log_scale=10, hue='year group', common_norm=False, fill=True, alpha=0.20, cut=0, ax=ax)
+    ax.axvline(mean_val, color='red', linestyle='--')
+    ax.axvline(median_val, color='red')
+    ax.set_xlim(10, 2000)
     ax.set_xlabel("Travel Time Seconds(clipped to 1-2000s to control outlier stamps)")
     ax.set_ylabel("Probability Density")
     ax.set_title('SFFD Suppresion Units, Lights and Sirens Travel Time To 911 Scene(Arrived First)')
 
-    fig.savefig("covid_before_after_SfCityfire_suppr_units_travel_time_to_call.png", dpi = 700)
+    fig.savefig("covid_before_after_SfCityfire_priv_units_travel_time_to_call.png", dpi = 700)
     plt.close(fig)
     theme.apply_transforms()
-
-
-
 
 
 
@@ -367,7 +363,8 @@ def main():
 
     #plot_mult_hist(dataframe, title="response_intervals")
     kde_sidebyside_vis_covid(clean)
-
+    plot_mult_hist(clean, "Response Intervals")
+    plot_hist(clean['travel_time_seconds'], "Travel Time Seconds")
     end_time = time.perf_counter()
     total_prog_time = end_time - start_time
 
