@@ -1,10 +1,10 @@
 import pandas as pd
-import VARIABLES
-from aquarel import load_theme
+import numpy as np
 import seaborn as sea
 import matplotlib.pyplot as plt
+from aquarel import load_theme
 from filterdata1 import keep_dates
-import numpy as np
+import VARIABLES
 
 
 def main():
@@ -47,7 +47,7 @@ def plot_hist(series, title=""):
     fig.savefig(f"{title}.png", dpi=300)
     plt.close(fig)
 
-
+##
 def plot_multi_hist(dataframe, title=""):
 
     cols = ["alarm_handling_seconds", "turnout_seconds", "travel_time_seconds", "total_response_seconds", "response_from_alarm_seconds", "commit_seconds"]
