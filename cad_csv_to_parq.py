@@ -1,2 +1,3 @@
 import pandas as pd
-pd.read_csv("Fire_Department_and_Emergency_Medical_Services_Dispatched_Calls_for_Service_20260908.csv", dtype=str).to_parquet("raw_cad_sf.parquet")
+pd.read_csv("raw_sf_cad_short.csv", dtype=str).to_parquet("raw_sf_cad.parquet")
+#use head -n xxxnumlines raw_sf_cad.csv > clipped_sf_cad.csv
