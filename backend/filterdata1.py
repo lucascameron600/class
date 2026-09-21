@@ -99,17 +99,16 @@ def flag_cancelled(dataframe):
     return dataframe
 
 
-#def flag_transp_available(dataframe):
-#
-#    #total_availible_transport = dataframe['is_transport'].sum()
-#
-#    medic_mask = dataframe['is_transport']
-#    medic_total = dataframe['is_transport'].sum()
+def flag_transp_available(dataframe):
 
+    total_availible_transport = dataframe['is_transport'].sum()
 
+    medic_mask = dataframe['is_transport']
+    medic_total = dataframe['is_transport'].sum()
 
-#    at_hosp_mask = dataframe[]
+    at_hosp_mask = dataframe[]
 
+def count_total_ems_vs_fire:
 
 
 #def attach_previous_call
