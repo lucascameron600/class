@@ -33,7 +33,9 @@ def filter_columns(dataframe):
     dataframe = dataframe.rename(columns=VARIABLES.MAP_CAD_COLUMNS).reset_index(drop=True) #No-op did because originally was a after another one
 
     ##export date and time
-    time_cols = ["received_time", "dispatch_time", "enroute_time", "onscene_time","transport_time", "available_time"]
+    time_cols = ["received_time", "dispatch_time",
+                 "enroute_time", "onscene_time",
+                 "transport_time", "available_time"]
 
     for column in time_cols:
         if column in dataframe.columns:
@@ -92,17 +94,25 @@ def flag_code3(dataframe):
 
 ##this is more cancelled after call received,
 def flag_cancelled(dataframe):
-    dataframe['is_cancelled_en_route'] = (dataframe['dispatch_time'].notna()
-                                       & dataframe['onscene_time'].isna())
+    dataframe['is_cancelled_en_route'] = (dataframe['dispatch_time'].notna() & dataframe['onscene_time'].isna())
     print(f"{dataframe['is_cancelled_en_route'].sum()} :units got cancelled en route")
     return dataframe
 
 
-#def flag_medic_available():
+#def flag_transp_available(dataframe):
+#
+#    #total_availible_transport = dataframe['is_transport'].sum()
+#
+#    medic_mask = dataframe['is_transport']
+#    medic_total = dataframe['is_transport'].sum()
 
 
 
-#def flag_
+#    at_hosp_mask = dataframe[]
+
+
+
+#def attach_previous_call
 
 #NEXT
 
@@ -230,10 +240,6 @@ def keep_dates(dataframe, start_date=None, end_date=None): #yyyy-mm-dd
         print(f"  {n_missing:,} rows dropped for missing/NaT received_time")
 
     return windowed
-
-
-
-
 
 def data_printout(dataframe):
     print("Heres the data")

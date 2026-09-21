@@ -10,13 +10,13 @@ import VARIABLES
 def main():
     all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
 
-    mask = (all_resp_2018_23['is_suppression'] & all_resp_2018_23['is_code3'] & all_resp_2018_23['arrival_rank_all'].eq(1))
+    mask = (all_resp_2018_23['is_transport'] & all_resp_2018_23['is_code3'])
     clean = all_resp_2018_23[mask]
 
 
-    kde_sidebyside_vis_covid(clean, "all suppression unit", "SF Suppression Units")
-    plot_multi_hist(clean, "Response Intervals, suppression units, Code 3 only")
-    plot_hist(clean['total_response_seconds'], 'Total_response_seconds, suppression only, code 3')
+    kde_sidebyside_vis_covid(clean, "all transport unit", "SF Transport Units")
+    plot_multi_hist(clean, "Response Intervals, transporting units, Code 3 only")
+    plot_hist(clean['total_response_seconds'], 'Total_response_seconds, transport only, code 3')
 
 
 #------------------------------------------------------
@@ -85,9 +85,9 @@ def kde_sidebyside_vis_covid(dataframe, describe='', title=''):
     df2 = keep_dates(dataframe, start_date='2020-03-01', end_date='2021-02-01').copy()
     df3 = keep_dates(dataframe, start_date='2022-03-01', end_date='2023-02-01').copy()
 
-    df1['year group'] = (f"Mar-Feb 2019-2020 (pre-shelter in place) {describe} responses to 911 calls n={len(df1)}")
-    df2['year group'] = (f"Mar-Feb 2020-2021 (shelter in place) {describe} responses to 911 calls n={len(df2)}")
-    df3['year group'] = (f"Mar-Feb 2022-2023 (post-shelter in place) {describe} responses to 911 calls n={len(df3)}")
+    df1['year group'] = (f"Mar-Feb 2019-2020 (pre-shelter in place) {describe} responses (n={len(df1)}) to 911 calls")
+    df2['year group'] = (f"Mar-Feb 2020-2021 (shelter in place) {describe} responses (n={len(df2)}) to 911 calls")
+    df3['year group'] = (f"Mar-Feb 2022-2023 (post-shelter in place) {describe} responses (n={len(df3)}) to 911 calls")
     combined_df = pd.concat([df1, df2, df3], ignore_index=True) #seaborn is weird so i need to reset indexes
 
     fig, ax = plt.subplots(figsize=(12, 7))
