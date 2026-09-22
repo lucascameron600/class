@@ -69,7 +69,6 @@ def flag_unit_types(dataframe):
     dataframe['is_suppression'] = dataframe['unit_type'].isin(VARIABLES.SUPPRESSION_UNITS)
     dataframe['is_private'] = dataframe['unit_type'].isin(VARIABLES.PRIVATE_UNITS)
 
-    ##anything that landed in no group is unaccounted for unit_type
     unknown = dataframe[~dataframe['is_fire'] & ~dataframe['is_command'] & ~dataframe['is_transport']]
     if len(unknown) > 0:
         print(f"  yo {len(unknown)} rows are not is_fire or is_command or is_transport:")
@@ -102,12 +101,15 @@ def flag_cancelled(dataframe):
 
 def flag_transp_available(dataframe):
 
-    total_availible_transport = dataframe['is_transport'].sum()
+    medic = dataframe.loc[dataframe['is_transport'], ['unit_id', 'dispatch_time', 'hospital_time', 'available_time']]
+    medic = medic.drop_duplicates() #not sure if this is neccessary
 
-    medic_mask = dataframe['is_transport']
-    medic_total = dataframe['is_transport'].sum()
+    medic = medic['commit_seconds'].between(pd.Timedelta(0), pd.Timedelta(hours=8))
+    at_hosp =
 
-    #at_hosp_mask = dataframe[]
+
+
+
 
 ## how many calls do suppression apparatus run vs medical
 #def count_total_ems_vs_fire:
@@ -154,7 +156,7 @@ def flag_arrival_order(dataframe):
 
     ##did a fire unit respond at all, and did ems beat them there
 
-    #dataframe['fire_responded'] = one_call['is_fire'].transform('any')  #what??? __ nonsense
+    #dataframe['fire_responded'] = one_call['is_fire'].transform('any')  #what??? __ nonsense .transform will use func 'any' or 'sum' etc then broadcast it back on 'any checks if its true'
 
     dataframe['suppression_beaten_by_ems'] = (dataframe['first_unit_type'].notna() & ~dataframe['first_unit_type'].isin(VARIABLES.SUPPRESSION_UNITS))
 
@@ -195,11 +197,9 @@ def remove_unusable_calls(dataframe):
     get_turnout_ok = turnout.ge(0)| turnout.isna()
     get_travel_ok = travel.between(1,2000) | travel.isna()
     get_commit_ok = commit.ge(0) | commit.isna()
-    get_total_ok = total.ge(1) | total.isna()
+    get_total_ok = total.ge(0) | total.isna()
     get_from_alarm_ok = from_alarm.ge(0) | from_alarm.isna()
 
-    ##these counts overlap, one bad row can fail two rules, so they do not add up
-    ##to the total dropped. they tell you which rule is doing the work
     #print(f"started at {starting_count} rows")
     print(f"  duplicate row      : {(~get_not_duplicate).sum():,}")
     print(f"  no dispatch time   : {(~get_dispatch).sum():,}")
@@ -268,7 +268,6 @@ def main():
     dataframe = flag_unit_types(dataframe)
     dataframe = flag_code3(dataframe)
     dataframe = flag_arrival_order(dataframe)
-    #print(dataframe['original_priority'].unique())
 
     print("CLEANING")
     clean = remove_unusable_calls(dataframe)
@@ -282,10 +281,6 @@ def main():
 
     data_printout(clean)
 
-    #plot_mult_hist(dataframe, title="response_intervals")
-    #kde_sidebyside_vis_covid(clean, "all transport unit", "SF Transporting Units")
-    #plot_mult_hist(clean, "Response Intervals all transport unit")
-    #plot_hist(clean['travel_time_seconds'], "Travel Time Seconds")
     end_time = time.perf_counter()
     total_prog_time = end_time - start_time
 

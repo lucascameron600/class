@@ -11,7 +11,7 @@ def main():
     all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
     print(f'{len(all_resp_2018_23):,} rows extracted from parq  ')
 
-    mask = (all_resp_2018_23['is_private'] & all_resp_2018_23['is_code3'])
+    mask = (all_resp_2018_23['is_suppression'] & all_resp_2018_23['is_code3'])
     clean = all_resp_2018_23[mask]
 
 
@@ -82,7 +82,7 @@ def kde_sidebyside_vis_covid(dataframe, describe='', title=''):
     #mean_val = df1['travel_time_seconds'].mean()
     #median_val = df1['travel_time_seconds'].median()
 
-    df1 = keep_dates(dataframe, start_date='2019-03-02', end_date='2020-02-01').copy()
+    df1 = keep_dates(dataframe, start_date='2019-03-01', end_date='2020-02-01').copy()
     df2 = keep_dates(dataframe, start_date='2020-03-01', end_date='2021-02-01').copy()
     df3 = keep_dates(dataframe, start_date='2022-03-01', end_date='2023-02-01').copy()
 
