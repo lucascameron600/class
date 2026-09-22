@@ -98,6 +98,8 @@ def flag_cancelled(dataframe):
     return dataframe
 
 
+def binary_search_busy(begin_npa, end_npa, times_npa)
+
 
 def flag_transp_available(dataframe):
 
@@ -105,7 +107,7 @@ def flag_transp_available(dataframe):
     medic = medic.drop_duplicates() #not sure if this is neccessary
 
     medic = medic['commit_seconds'].between(pd.Timedelta(0), pd.Timedelta(hours=8))
-    at_hosp =
+    at_hosp = medic[medic['hospital_time'].between(medic['dispatch_time'], medic['available_time'])]
 
 
 
