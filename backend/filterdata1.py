@@ -30,7 +30,7 @@ def extract_points(wkt_series):
 #____________________________________
 ##filters out, rename, and tag new columns
 def filter_columns(dataframe):
-    dataframe = dataframe.rename(columns=VARIABLES.MAP_CAD_COLUMNS).reset_index(drop=True) #No-op did because originally was a after another one
+    dataframe = dataframe.rename(columns=VARIABLES.MAP_CAD_COLUMNS)  #.reset_index(drop=True) #Non operation did because function was reordered originall
 
     ##export date and time
     time_cols = ["received_time", "dispatch_time",
@@ -99,6 +99,7 @@ def flag_cancelled(dataframe):
     return dataframe
 
 
+
 def flag_transp_available(dataframe):
 
     total_availible_transport = dataframe['is_transport'].sum()
@@ -106,9 +107,11 @@ def flag_transp_available(dataframe):
     medic_mask = dataframe['is_transport']
     medic_total = dataframe['is_transport'].sum()
 
-    at_hosp_mask = dataframe[]
+    #at_hosp_mask = dataframe[]
 
-def count_total_ems_vs_fire:
+## how many calls do suppression apparatus run vs medical
+#def count_total_ems_vs_fire:
+
 
 
 #def attach_previous_call
@@ -150,7 +153,9 @@ def flag_arrival_order(dataframe):
     dataframe['first_unit_type'] = dataframe['incident_id'].map(first_types)
 
     ##did a fire unit respond at all, and did ems beat them there
-    dataframe['fire_responded'] = one_call['is_fire'].transform('any')  #what???
+
+    #dataframe['fire_responded'] = one_call['is_fire'].transform('any')  #what??? __ nonsense
+
     dataframe['suppression_beaten_by_ems'] = (dataframe['first_unit_type'].notna() & ~dataframe['first_unit_type'].isin(VARIABLES.SUPPRESSION_UNITS))
 
     print(f"flagged arrival order over all units now have {len(dataframe)}")
@@ -190,7 +195,7 @@ def remove_unusable_calls(dataframe):
     get_turnout_ok = turnout.ge(0)| turnout.isna()
     get_travel_ok = travel.between(1,2000) | travel.isna()
     get_commit_ok = commit.ge(0) | commit.isna()
-    get_total_ok = total.ge(0) | total.isna()
+    get_total_ok = total.ge(1) | total.isna()
     get_from_alarm_ok = from_alarm.ge(0) | from_alarm.isna()
 
     ##these counts overlap, one bad row can fail two rules, so they do not add up
@@ -206,8 +211,8 @@ def remove_unusable_calls(dataframe):
     print(f"  bad responseseconds : {(~get_total_ok).sum():,}")
     print(f"  bad responsefrmalarm : {(~get_from_alarm_ok).sum():,}")
     print(f"  is cancelled during response?: {(dataframe['is_cancelled_en_route']).sum()}, ")
-    print(f"  this many first arrivers: {len(get_first_arrivers)}")
-    print(f"  this many suppression: {len(get_suppression_units)}")
+    print(f"  this many first arrivers: {get_first_arrivers.sum()}")
+    print(f"  this many suppression: {get_suppression_units.sum()}")
     print(f"  transport units included:    {(get_transport_units).sum():,}")
     calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok
                      & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok

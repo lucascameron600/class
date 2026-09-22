@@ -9,8 +9,9 @@ import VARIABLES
 
 def main():
     all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
+    print(f'{len(all_resp_2018_23):,} rows extracted from parq  ')
 
-    mask = (all_resp_2018_23['is_transport'] & all_resp_2018_23['is_code3'])
+    mask = (all_resp_2018_23['is_private'] & all_resp_2018_23['is_code3'])
     clean = all_resp_2018_23[mask]
 
 
