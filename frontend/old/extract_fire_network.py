@@ -9,9 +9,9 @@ from pyrosm import OSM
 
 # ---------------- CONFIG: edit these to match your setup ----------------
 PBF_PATH = '../../data/osm/norcal.osm.pbf'   # NorCal extract in the sibling folder
-STATIONS_CSV = '../../data/workingfiles/stations/working_sf_stations.csv'
+STATIONS_PARQ = '../../data/workingfiles/stations/post_et_sf_stations.parquet'
 
-# column names in firestations.csv
+# column names in firestations.parq
 NAME_COL = 'station_id'
 LAT_COL = 'station_latitude'
 LON_COL = 'station_longitude'
@@ -29,10 +29,11 @@ OUT_PNG = 'outcome/travel_time_sf_fire.png'
 ##def sum_timecosts_djisktra(multiplier, time, penalties):
 
 
-def build_stations_geo(csv_path):
-    ##geoframe built for geospacial analysis, one row per station
-    df = pd.read_csv(csv_path)
-    df = df.dropna(subset=[LAT_COL, LON_COL])
+def build_stations_geo(parq_path):
+    ##geoframe built for geospacial analysis one row per station
+    df = pd.read_parquet(parq_path)
+    df = df.dropna(subset=[LAT_COL, LON_COL, NAME_COL])
+
     return gpd.GeoDataFrame(
         df,
         geometry=gpd.points_from_xy(df[LON_COL], df[LAT_COL]),  # x = lon, y = lat
@@ -40,7 +41,7 @@ def build_stations_geo(csv_path):
     )
 
 
-STATIONS_GEOFRAME = build_stations_geo(STATIONS_CSV)
+STATIONS_GEOFRAME = build_stations_geo(STATIONS_PARQ)
 print(f'loaded {len(STATIONS_GEOFRAME)} stations')
 
 # clip the NorCal extract to a box around the stations so we don't load all of NorCal

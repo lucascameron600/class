@@ -98,16 +98,23 @@ def flag_cancelled(dataframe):
     return dataframe
 
 
-def binary_search_busy(begin_npa, end_npa, times_npa)
+#def binary_search_busy(begin_npa, end_npa, times_npa):
 
 
-def flag_transp_available(dataframe):
 
-    medic = dataframe.loc[dataframe['is_transport'], ['unit_id', 'dispatch_time', 'hospital_time', 'available_time']]
-    medic = medic.drop_duplicates() #not sure if this is neccessary
+#def flag_transp_available(dataframe):
 
-    medic = medic['commit_seconds'].between(pd.Timedelta(0), pd.Timedelta(hours=8))
-    at_hosp = medic[medic['hospital_time'].between(medic['dispatch_time'], medic['available_time'])]
+#    medic = dataframe.loc[dataframe['is_transport'], ['unit_id', 'dispatch_time', 'hospital_time', 'available_time']]
+#    medic = medic.drop_duplicates() #not sure if this is neccessary
+
+#    medic = medic['commit_seconds'].between(pd.Timedelta(0), pd.Timedelta(hours=8))
+#    at_hosp = medic[medic['hospital_time'].between(medic['dispatch_time'], medic['available_time'])]
+
+def flag_idle_time(dataframe):
+    dataframe = dataframe.sort_values(["unit_id", "dispatch_time"])
+    previous_available = dataframe.groupby("unit_id")["available_time"].shift()
+    dataframe["idle_minutes"] = (dataframe["dispatch_time"] - previous_available).dt.total_seconds() / 60
+    return dataframe
 
 
 
@@ -197,7 +204,7 @@ def remove_unusable_calls(dataframe):
     #only non negative intervals possibly calls get in with negative intervals. could be timezone differences
     get_alarm_ok = alarm.ge(0) | alarm.isna()
     get_turnout_ok = turnout.ge(0)| turnout.isna()
-    get_travel_ok = travel.between(1,2000) | travel.isna()
+    get_travel_ok = travel.ge(0) | travel.isna()
     get_commit_ok = commit.ge(0) | commit.isna()
     get_total_ok = total.ge(0) | total.isna()
     get_from_alarm_ok = from_alarm.ge(0) | from_alarm.isna()
@@ -270,7 +277,7 @@ def main():
     dataframe = flag_unit_types(dataframe)
     dataframe = flag_code3(dataframe)
     dataframe = flag_arrival_order(dataframe)
-
+    dataframe = flag_idle_time(dataframe)
     print("CLEANING")
     clean = remove_unusable_calls(dataframe)
 
