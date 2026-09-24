@@ -1,0 +1,22 @@
+services:
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    container_name: osrm
+    command: osrm-routed --algorithm mld --max-matching-size 1000 /data/norcal.osrm #map matching size prop need to be increased
+    volumes:
+      - ./data:/data
+    ports:
+      - "5000:5000"
+
+  prepare:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    profiles: ["prepare"]
+    volumes:
+      - ./data:/data
+    command:
+      - sh
+      - -c
+      - |
+        osrm-extract -p /opt/car.lua /data/norcal.osm.pbf &&
+        osrm-partition /data/norcal.osrm &&
+        osrm-customize /data/norcal.osrm
