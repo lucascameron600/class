@@ -81,6 +81,6 @@ WORKING_TRIPS_PARQ = Path("../data/workingfiles/cad/station_origin_trips.parquet
 #unit type catagories
 ALL_FIRE_UNITS = ['INVESTIGATION', 'AIRPORT', 'MEDIC', 'SUPPORT', 'CHIEF', 'CP', 'ENGINE', 'TRUCK', 'RESCUE SQUAD', 'RESCUE CAPTAIN']
 SUPPRESSION_UNITS = ['ENGINE', 'TRUCK']
-TRANSPORT_UNITS = ['MEDIC', 'PRIVATE']  #PRIVATE is the only non fire unit
-PRIVATE_UNITS = ['PRIVATE']
+TRANSPORT_UNITS = ['MEDIC', 'PRIVATE', 'BLS']  #PRIVATE is the only non fire unit
+PRIVATE_UNITS = ['PRIVATE', 'BLS']
 COMMAND_UNITS = ['CP', 'CHIEF']
