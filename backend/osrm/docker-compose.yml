@@ -1,7 +1,7 @@
 # OSRM for SF with SPEEDS.CSV AND emergency.lua profile.
 #
 #   docker compose up -d                      build the routing files and start the router
-#   docker compose logs -f osrm-prep          watch the build (profile errors show up here)
+#   docker compose logs -f osrm-prep          watch the build 
 #   docker compose up -d --force-recreate     after editing the profile: rebuild + restart
 #
 #############  IMPORTANT FILES  #################################################
@@ -16,14 +16,13 @@
 #   speeds.csv       optional. model speeds per road segment (u,v,km/h, no header).
 #                    if it's there, it overrides the profile's speeds; delete it to go back
 #
-# Router: http://localhost:5000
-# Consider pinning the image to a version tag so rebuilds are reproducible.
+# PINNED TO CURRENT IMAGE
 
 services:
 
   # builds the routing files, then exits. the router waits for it to succeed
   osrm-prep:
-    image: ghcr.io/project-osrm/osrm-backend
+    image: ghcr.io/project-osrm/osrm-backend:v26.8.0-debian
     volumes:
       - ./data:/data
     entrypoint: ["/bin/sh", "-c"]
@@ -42,7 +41,7 @@ services:
         fi
 
   osrm:
-    image: ghcr.io/project-osrm/osrm-backend
+    image: ghcr.io/project-osrm/osrm-backend:v26.8.0-debian
     volumes:
       - ./data:/data:ro
     command: ["osrm-routed", "--algorithm", "mld", "--max-table-size", "1000", "/data/sf.osrm"]
