@@ -17,8 +17,8 @@ LAT_COL = 'station_latitude'
 LON_COL = 'station_longitude'
 
 PROJ_CRS = 'EPSG:3310'     # California Albers (meters), valid statewide incl. SF
-DEFAULT_SPEED = 20         # mph
-CUTOFF_MIN = 10            # dijkstra cutoff in minutes
+DEFAULT_SPEED = 30        # mph
+CUTOFF_MIN = 4            # dijkstra cutoff in minutes
 BBOX_PAD_DEG = 0.02        # ~2 km of road network kept around the outermost stations
 OUT_PNG = 'outcome/travel_time_sf_fire.png'
 # -------------------------------------------------------------------------
@@ -88,7 +88,7 @@ snapped_station_ids = snap_stations['node_id'].unique().tolist()
 
 far = snap_stations[snap_stations['snap_dist_m'] > 200]
 if len(far):
-    print('WARNING: these stations snapped more than 200 m from a road node, check their coords:')
+    print('WARNING! WARNING: these stations snapped >200m from a road node, check their coords!!')
     print(far[[c for c in (NAME_COL, 'snap_dist_m') if c in far.columns]])
 
 ##EDGE time COSTS in MINUTES
@@ -116,12 +116,12 @@ final_coords = NODES_proj.set_index('id').loc[node_ids]
 fig, ax = plt.subplots(figsize=(35, 35))
 scatterdots = ax.scatter(
     final_coords.geometry.x.values, final_coords.geometry.y.values,
-    c=travel_times, rasterized=True, cmap='summer', s=.2, vmax=CUTOFF_MIN, alpha=0.7,
+    c=travel_times, rasterized=True, cmap='cool', s=.6, vmax=CUTOFF_MIN, alpha=0.7,
 )
-stations_proj.plot(ax=ax, color='red', marker='^', markersize=120, zorder=5)
+stations_proj.plot(ax=ax, color='red', marker=11, markersize=120, zorder=5)
 if NAME_COL in stations_proj.columns:
     for _, row in stations_proj.iterrows():
-        ax.annotate(str(row[NAME_COL]), (row.geometry.x, row.geometry.y),
+        ax.annotate("ST: " + str(row[NAME_COL]), (row.geometry.x, row.geometry.y),
                     xytext=(4, 4), textcoords='offset points', fontsize=10)
 
 fig.colorbar(scatterdots, ax=ax, shrink=0.5, label='minutes from nearest station')
