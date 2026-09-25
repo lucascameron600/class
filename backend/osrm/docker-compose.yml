@@ -1,22 +1,54 @@
+# OSRM for SF with SPEEDS.CSV AND emergency.lua profile.
+#
+#   docker compose up -d                      build the routing files and start the router
+#   docker compose logs -f osrm-prep          watch the build (profile errors show up here)
+#   docker compose up -d --force-recreate     after editing the profile: rebuild + restart
+#
+#############  IMPORTANT FILES  #################################################
+#############     in /data      ###############################################
+#
+#   sf.osm.pbf       San Francisco clipped from the norcal extract:
+#                    osmium extract -b -122.55,37.68,-122.33,37.84 osrm/data/norcal.osm.pbf -o osrm/data/sf.osm.pbf
+#   emergency.lua    your profile
+#   lib/             only needed if your profile uses require("lib/...") like car.lua does.
+#                    copy it out of the image once:
+#                    docker run --rm -v "$PWD/osrm/data:/data" ghcr.io/project-osrm/osrm-backend cp -r /opt/lib /data/
+#   speeds.csv       optional. model speeds per road segment (u,v,km/h, no header).
+#                    if it's there, it overrides the profile's speeds; delete it to go back
+#
+# Router: http://localhost:5000
+# Consider pinning the image to a version tag so rebuilds are reproducible.
+
 services:
-  osrm:
-    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
-    container_name: osrm
-    command: osrm-routed --algorithm mld --max-matching-size 1000 /data/norcal.osrm #map matching size prop need to be increased
+
+  # builds the routing files, then exits. the router waits for it to succeed
+  osrm-prep:
+    image: ghcr.io/project-osrm/osrm-backend
     volumes:
       - ./data:/data
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        test -f /data/emergency.lua || { echo "missing osrm/data/emergency.lua"; exit 1; }
+        test -f /data/sf.osm.pbf || { echo "missing osrm/data/sf.osm.pbf"; exit 1; }
+        osrm-extract -p /data/emergency.lua /data/sf.osm.pbf
+        osrm-partition /data/sf.osrm
+        if [ -f /data/speeds.csv ]; then
+          echo "using segment speeds from osrm/data/speeds.csv"
+          osrm-customize --segment-speed-file /data/speeds.csv /data/sf.osrm
+        else
+          osrm-customize /data/sf.osrm
+        fi
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend
+    volumes:
+      - ./data:/data:ro
+    command: ["osrm-routed", "--algorithm", "mld", "--max-table-size", "1000", "/data/sf.osrm"]
     ports:
       - "5000:5000"
-
-  prepare:
-    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
-    profiles: ["prepare"]
-    volumes:
-      - ./data:/data
-    command:
-      - sh
-      - -c
-      - |
-        osrm-extract -p /opt/car.lua /data/norcal.osm.pbf &&
-        osrm-partition /data/norcal.osrm &&
-        osrm-customize /data/norcal.osrm
+    depends_on:
+      osrm-prep:
+        condition: service_completed_successfully
+    restart: unless-stopped
