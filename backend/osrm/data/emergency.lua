@@ -130,7 +130,9 @@ function setup()
     },
 
     access_tags_hierarchy = Sequence {
-      'emergency',      
+      'emergency',      --added
+      'psv',   --added
+      'bus',  --added
       'motorcar',
       'motor_vehicle',
       'vehicle',
@@ -145,6 +147,10 @@ function setup()
       'motorcar',
       'emergency', --for turn restrictions
       'psv', --for turn restrictions
+      'bus',  --added
+      'taxi', --added
+      'muni',  --added
+      'transit',  --added
       'motor_vehicle',
       'vehicle'
     },
