@@ -129,11 +129,11 @@ def boxplot_by_engine(dataframe, station_col=None, title=''):
 
     dataframe = dataframe[dataframe[station_col] != 'E84']
     dataframe['engine'] = dataframe[station_col] + " (n=" + dataframe[station_col].map(dataframe[station_col].value_counts()).astype(str) + ")"
-    order = dataframe.groupby('engine')['travel_time_seconds'].median().sort_values().index #fastest to slowest
+    order = dataframe.groupby('engine')['travel_time_seconds'].median().sort_values().index # better vis, lowest to highest median
 
     fig, ax = plt.subplots(figsize=(10, 14))
 
-    #whiskers go from the 10 to the 90 percentile, outlier dots hidden
+    # whiskers go from the 10 to the 90 percentile, outlier dots hidden
     sea.boxplot(data=dataframe, x='travel_time_seconds', y='engine', order=order, whis=(10, 90), showfliers=False, ax=ax)
 
     ax.axvline(dataframe['travel_time_seconds'].median(), color='red')
@@ -141,6 +141,7 @@ def boxplot_by_engine(dataframe, station_col=None, title=''):
     ax.set_xlabel("Travel Time Seconds (whiskers 10th-90th percentile)")
     ax.set_ylabel("Engine")
     ax.set_title(title)
+    plt.tight_layout()
     theme.apply_transforms()
     fig.savefig(f"{title}.png", dpi=300)
     plt.close(fig)
@@ -164,6 +165,7 @@ def boxplot_by_neighborhood(dataframe, area_col='neighborhood', time_col='total_
     ax.set_xlabel(f"{time_col} (whiskers 10th-90th percentile)")
     ax.set_ylabel("")
     ax.set_title(title)
+    plt.tight_layout()
     theme.apply_transforms()
     fig.savefig(f"{title}.png", dpi=300)
     plt.close(fig)
