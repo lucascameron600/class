@@ -40,7 +40,8 @@ MAP_CAD_COLUMNS = {
     "ALS Unit":               "als_unit",
     "Number of Alarms":       "number_of_alarms",
     "Unit sequence in call dispatch": "dispatch_sequence",
-    "case_location":          "call_location",         # coords in degrees of lon lat [lon, lat]
+    "case_location":          "call_location", # coords in degrees of lon lat [lon, lat]
+    "Neighborhooods - Analysis Boundaries": "neighborhood"
 }
 
 MAP_STATION_COLUMNS = {

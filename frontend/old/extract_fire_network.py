@@ -116,7 +116,7 @@ final_coords = NODES_proj.set_index('id').loc[node_ids]
 fig, ax = plt.subplots(figsize=(35, 35))
 scatterdots = ax.scatter(
     final_coords.geometry.x.values, final_coords.geometry.y.values,
-    c=travel_times, rasterized=True, cmap='cool', s=.6, vmax=CUTOFF_MIN, alpha=0.7,
+    c=travel_times, rasterized=True, cmap='cool', s=.9, vmax=CUTOFF_MIN, alpha=0.7,
 )
 stations_proj.plot(ax=ax, color='red', marker=11, markersize=120, zorder=5)
 if NAME_COL in stations_proj.columns:
