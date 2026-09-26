@@ -127,16 +127,17 @@ def boxplot_by_engine(dataframe, station_col=None, title=''):
 
     dataframe[station_col] = dataframe[station_col].astype(str)
 
+    dataframe = dataframe[dataframe[station_col] != 'E84']
     dataframe['engine'] = dataframe[station_col] + " (n=" + dataframe[station_col].map(dataframe[station_col].value_counts()).astype(str) + ")"
     order = dataframe.groupby('engine')['travel_time_seconds'].median().sort_values().index #fastest to slowest
 
     fig, ax = plt.subplots(figsize=(10, 14))
 
-    #whiskers go from the 10th to the 90th percentile, outlier dots hidden
+    #whiskers go from the 10 to the 90 percentile, outlier dots hidden
     sea.boxplot(data=dataframe, x='travel_time_seconds', y='engine', order=order, whis=(10, 90), showfliers=False, ax=ax)
 
     ax.axvline(dataframe['travel_time_seconds'].median(), color='red')
-    ax.set_xlim(0, 750)
+    #ax.set_xlim(0, 750)
     ax.set_xlabel("Travel Time Seconds (whiskers 10th-90th percentile)")
     ax.set_ylabel("Engine")
     ax.set_title(title)
@@ -156,7 +157,7 @@ def boxplot_by_neighborhood(dataframe, area_col='neighborhood', time_col='total_
 
     fig, ax = plt.subplots(figsize=(10, 14))
 
-    #whiskers go from the 10th to the 90th percentile, outlier dots hidden
+    #whiskers go from the 10th to the 90th percentile
     sea.boxplot(data=df, x=time_col, y='area', order=order, whis=(10, 90), showfliers=False, ax=ax)
 
     ax.axvline(df[time_col].median(), color='red')
