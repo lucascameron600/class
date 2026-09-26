@@ -8,11 +8,11 @@ import VARIABLES
 
 
 def main():
-    all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
-    print(f'{len(all_resp_2018_23):,} rows extracted from parq  ')
+    all_resp_23_26 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
+    print(f'{len(all_resp_23_26):,} rows extracted from parq  ')
 
-    engine_mask = (all_resp_2018_23['is_code3'] & all_resp_2018_23['unit_type'].isin(['ENGINE']))
-    clean = all_resp_2018_23[engine_mask]
+    engine_mask = (all_resp_23_26['is_code3'] & all_resp_23_26['unit_type'].isin(['ENGINE']))
+    clean = all_resp_23_26[engine_mask]
 
 
     print(clean.describe().T)
@@ -26,8 +26,8 @@ def main():
     #kde_by_station(clean, station_col='station_area', title='stations_suppression')
     boxplot_by_engine(clean, station_col='unit_id', title='Per engine travel time all calls')
 
-    ambulance_mask = (all_resp_2018_23['is_transport'] & all_resp_2018_23['is_code3'])
-    ambulances = all_resp_2018_23[ambulance_mask]
+    ambulance_mask = (all_resp_23_26['is_transport'] & all_resp_23_26['is_code3'])
+    ambulances = all_resp_23_26[ambulance_mask]
     boxplot_by_neighborhood(ambulances, title='ambulance response time by neighborhood code 3')
 
 
