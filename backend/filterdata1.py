@@ -112,8 +112,11 @@ def flag_cancelled(dataframe):
 
 def flag_idle_time(dataframe):
     dataframe = dataframe.sort_values(["unit_id", "dispatch_time"])
+    duplicates = dataframe.duplicated(subset=["incident_id", "unit_id", "dispatch_time"], keep="first")
+    print(f"IF THIS > 0 YOU NEED TO DROP DUPLICATES BEFORE CHECKING PLAUSIBILITY: {duplicates.sum():,}")
+
     previous_available = dataframe.groupby("unit_id")["available_time"].shift()
-    dataframe["idle_minutes"] = (dataframe["dispatch_time"] - previous_available).dt.total_seconds() / 60
+    dataframe["idle_seconds"] = (dataframe["dispatch_time"] - previous_available).dt.total_seconds()
     return dataframe
 
 
@@ -191,6 +194,7 @@ def remove_unusable_calls(dataframe):
     commit = dataframe['commit_seconds']
     total = dataframe['total_response_seconds']
     from_alarm = dataframe['response_from_alarm_seconds']
+    idle_seconds = dataframe['idle_seconds']
 
 
     get_first_arrivers = dataframe['arrival_rank_all'].eq(1)
@@ -208,6 +212,7 @@ def remove_unusable_calls(dataframe):
     get_commit_ok = commit.ge(0) | commit.isna()
     get_total_ok = total.ge(0) | total.isna()
     get_from_alarm_ok = from_alarm.ge(0) | from_alarm.isna()
+    get_idle_seconds_ok =  idle_seconds.ge(0) | idle_seconds.isna()
 
     #print(f"started at {starting_count} rows")
     print(f"  duplicate row      : {(~get_not_duplicate).sum():,}")
@@ -219,13 +224,15 @@ def remove_unusable_calls(dataframe):
     print(f"  bad commit         : {(~get_commit_ok).sum():,}")
     print(f"  bad responseseconds : {(~get_total_ok).sum():,}")
     print(f"  bad responsefrmalarm : {(~get_from_alarm_ok).sum():,}")
+    print(f"  bad idle seconds : {(~get_idle_seconds_ok).sum():,}")
+
     print(f"  is cancelled during response?: {(dataframe['is_cancelled_en_route']).sum()}, ")
     print(f"  this many first arrivers: {get_first_arrivers.sum()}")
     print(f"  this many suppression: {get_suppression_units.sum()}")
     print(f"  transport units included:    {(get_transport_units).sum():,}")
     calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok
                      & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok
-                     & get_from_alarm_ok)
+                     & get_from_alarm_ok & get_idle_seconds_ok)
 
     #usable = dataframe[calls_to_keep].copy()
     #print(f"ended at {len(usable)} rows ({len(usable) / starting_count:.1%} of input)")
@@ -257,7 +264,9 @@ def keep_dates(dataframe, start_date=None, end_date=None): #yyyy-mm-dd
 def data_printout(dataframe):
     print("Heres the data")
     print(dataframe.shape)
-    print(dataframe.head(9).T)
+    print(dataframe.head(2).T)
+    print(dataframe.tail(2).T)
+
     print(dataframe.dtypes) #strings
     print(dataframe.describe().T)
 
@@ -270,13 +279,15 @@ def main():
 
     dataframe = filter_columns(dataframe)
 
-    dataframe = keep_dates(dataframe, start_date='2018-01-01', end_date='2023-01-02')
+    dataframe = keep_dates(dataframe, start_date='2023-01-01', end_date='2026-01-01')
     #print(sorted(dataframe['station_area'].dropna().unique()))
 
     dataframe = flag_cancelled(dataframe)
     dataframe = flag_unit_types(dataframe)
     dataframe = flag_code3(dataframe)
     dataframe = flag_arrival_order(dataframe)
+
+    ##TO MAKE SURE THERE ARE NO DUPLICATES HERE BEFORE SHIFTING
     dataframe = flag_idle_time(dataframe)
     print("CLEANING")
     clean = remove_unusable_calls(dataframe)

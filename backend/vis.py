@@ -11,13 +11,24 @@ def main():
     all_resp_2018_23 = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
     print(f'{len(all_resp_2018_23):,} rows extracted from parq  ')
 
-    mask = (all_resp_2018_23['is_suppression'] & all_resp_2018_23['is_code3'] & all_resp_2018_23['travel_time_seconds'].between(1,2000))
-    clean = all_resp_2018_23[mask]
+    engine_mask = (all_resp_2018_23['is_code3'] & all_resp_2018_23['unit_type'].isin(['ENGINE']))
+    clean = all_resp_2018_23[engine_mask]
 
 
-    kde_sidebyside_vis_covid(clean, "all transport unit", "SF Transport Units")
-    plot_multi_hist(clean, "Response Intervals, transporting units, Code 3 only")
-    plot_hist(clean['total_response_seconds'], 'Total_response_seconds, transport only, code 3')
+    print(clean.describe().T)
+    print(clean.head(9).T)
+    print(clean.tail(9).T)
+
+
+    #kde_sidebyside_vis_covid(clean, "all transport unit", "SF Transport Units")
+    #plot_multi_hist(clean, "Response Intervals, transporting units, Code 3 only")
+    #plot_hist(clean['total_response_seconds'], 'Total_response_seconds, transport only, code 3')
+    #kde_by_station(clean, station_col='station_area', title='stations_suppression')
+    boxplot_by_engine(clean, station_col='unit_id', title='Per engine travel time all calls')
+
+    ambulance_mask = (all_resp_2018_23['is_transport'] & all_resp_2018_23['is_code3'])
+    ambulances = all_resp_2018_23[ambulance_mask]
+    boxplot_by_neighborhood(ambulances, title='ambulance response time by neighborhood code 3')
 
 
 #------------------------------------------------------
@@ -98,6 +109,8 @@ def kde_sidebyside_vis_covid(dataframe, describe='', title=''):
     sea.kdeplot(data=combined_df, x='travel_time_seconds', hue='year group', common_norm=False, fill=True, alpha=0.20, cut=0, ax=ax)
     #ax.axvline(mean_val, color='red', linestyle='--')
     #ax.axvline(median_val, color='red')
+
+
     ax.set_xlim(0, 2000)
     ax.set_xlabel("Travel Time Seconds(clipped to 1-2000s to control outlier stamps)")
     ax.set_ylabel("Probability Density")
@@ -106,6 +119,53 @@ def kde_sidebyside_vis_covid(dataframe, describe='', title=''):
     plt.close(fig)
     theme.apply_transforms()
 
+
+def boxplot_by_engine(dataframe, station_col=None, title=''):
+
+    theme = load_theme('umbra_dark')
+    theme.apply()
+
+    dataframe[station_col] = dataframe[station_col].astype(str)
+
+    dataframe['engine'] = dataframe[station_col] + " (n=" + dataframe[station_col].map(dataframe[station_col].value_counts()).astype(str) + ")"
+    order = dataframe.groupby('engine')['travel_time_seconds'].median().sort_values().index #fastest to slowest
+
+    fig, ax = plt.subplots(figsize=(10, 14))
+
+    #whiskers go from the 10th to the 90th percentile, outlier dots hidden
+    sea.boxplot(data=dataframe, x='travel_time_seconds', y='engine', order=order, whis=(10, 90), showfliers=False, ax=ax)
+
+    ax.axvline(dataframe['travel_time_seconds'].median(), color='red')
+    ax.set_xlim(0, 750)
+    ax.set_xlabel("Travel Time Seconds (whiskers 10th-90th percentile)")
+    ax.set_ylabel("Engine")
+    ax.set_title(title)
+    theme.apply_transforms()
+    fig.savefig(f"{title}.png", dpi=300)
+    plt.close(fig)
+
+def boxplot_by_neighborhood(dataframe, area_col='neighborhood', time_col='total_response_seconds', title=''):
+
+    theme = load_theme('umbra_dark')
+    theme.apply()
+
+    df = dataframe.dropna(subset=[area_col, time_col]).copy()
+    df[area_col] = df[area_col].astype(str)
+    df['area'] = df[area_col] + " (n=" + df[area_col].map(df[area_col].value_counts()).astype(str) + ")"
+    order = df.groupby('area')[time_col].median().sort_values().index #fastest to slowest
+
+    fig, ax = plt.subplots(figsize=(10, 14))
+
+    #whiskers go from the 10th to the 90th percentile, outlier dots hidden
+    sea.boxplot(data=df, x=time_col, y='area', order=order, whis=(10, 90), showfliers=False, ax=ax)
+
+    ax.axvline(df[time_col].median(), color='red')
+    ax.set_xlabel(f"{time_col} (whiskers 10th-90th percentile)")
+    ax.set_ylabel("")
+    ax.set_title(title)
+    theme.apply_transforms()
+    fig.savefig(f"{title}.png", dpi=300)
+    plt.close(fig)
 
 if __name__ == '__main__':
     main()

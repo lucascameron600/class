@@ -17,7 +17,7 @@ LAT_COL = 'station_latitude'
 LON_COL = 'station_longitude'
 
 PROJ_CRS = 'EPSG:3310'     # California Albers (meters), valid statewide incl. SF
-DEFAULT_SPEED = 30        # mph
+DEFAULT_SPEED = 28        # mph
 CUTOFF_MIN = 4            # dijkstra cutoff in minutes
 BBOX_PAD_DEG = 0.02        # ~2 km of road network kept around the outermost stations
 OUT_PNG = 'outcome/travel_time_sf_fire.png'

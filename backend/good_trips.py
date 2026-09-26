@@ -1,6 +1,8 @@
 #here, we take our cleaned trips, our cleaned stations, and then we combine them to build
 #solid trips that we think are usable for prediction
 
+#GOAL: output an
+
 
 import time
 from pathlib import Path
