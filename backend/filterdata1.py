@@ -98,7 +98,22 @@ def flag_cancelled(dataframe):
     return dataframe
 
 
-#def binary_search_busy(begin_npa, end_npa, times_npa):
+
+
+
+
+def flag_idle_time(dataframe):
+    dataframe = dataframe.sort_values(["unit_id", "dispatch_time"])
+    duplicates = dataframe.duplicated(subset=["incident_id", "unit_id", "dispatch_time"], keep="first")
+    print(f"IF THIS > 0 YOU NEED TO DROP DUPLICATES BEFORE CHECKING PLAUSIBILITY: {duplicates.sum():,}")
+
+    prev = dataframe.groupby("unit_id")[["available_time", "call_latitude", "call_longitude"]].shift()
+
+    dataframe["prev_available_time"] = prev["available_time"]
+    dataframe["prev_call_latitude"] = prev["call_latitude"]
+    dataframe["prev_call_longitude"] = prev["call_longitude"]
+    dataframe["idle_seconds"] = (dataframe["dispatch_time"] - prev["available_time"]).dt.total_seconds()
+    return dataframe
 
 
 
@@ -109,28 +124,6 @@ def flag_cancelled(dataframe):
 
 #    medic = medic['commit_seconds'].between(pd.Timedelta(0), pd.Timedelta(hours=8))
 #    at_hosp = medic[medic['hospital_time'].between(medic['dispatch_time'], medic['available_time'])]
-
-def flag_idle_time(dataframe):
-    dataframe = dataframe.sort_values(["unit_id", "dispatch_time"])
-    duplicates = dataframe.duplicated(subset=["incident_id", "unit_id", "dispatch_time"], keep="first")
-    print(f"IF THIS > 0 YOU NEED TO DROP DUPLICATES BEFORE CHECKING PLAUSIBILITY: {duplicates.sum():,}")
-
-    previous_available = dataframe.groupby("unit_id")["available_time"].shift()
-    dataframe["idle_seconds"] = (dataframe["dispatch_time"] - previous_available).dt.total_seconds()
-    return dataframe
-
-
-
-
-
-## how many calls do suppression apparatus run vs medical
-#def count_total_ems_vs_fire:
-
-
-
-#def attach_previous_call
-
-#NEXT
 
 
 #def flag_response_in_first_due():
@@ -145,13 +138,10 @@ def flag_idle_time(dataframe):
 
 
 ##rank who got to the call first, over ALL units.
-##this has to happen before anything is dropped. if you drop the medic first then
-##the engine looks like it was first when really the medic beat it there.
-##soc.py re-ranks inside its own population, this one is just descriptive.
-
 ## memory killer
 def flag_arrival_order(dataframe):
     print(f"length before flagging arrival{len(dataframe)}")
+    #in future, deduplicate before this
     dataframe = dataframe.sort_values(['incident_id', 'onscene_time'])
 
     arrived = dataframe['onscene_time'].notna()
