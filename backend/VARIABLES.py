@@ -10,7 +10,7 @@ RAW_STATIONS_CSV = Path('data/raw_sf_fire_stations.csv')
 
 
 POST_ET_CAD_PARQ = Path('../data/workingfiles/cad/post_et_sf_cad.parquet')
-POST_ET_STATIONS_PARQ = Path("data/workingfiles/stations/post_et_sf_stations.parquet")
+POST_ET_STATIONS_PARQ = Path("../data/workingfiles/stations/post_et_sf_stations.parquet")
 
 
 FIGURE_DIR = Path('../data/workingfiles/figures')
