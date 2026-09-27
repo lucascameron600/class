@@ -107,12 +107,24 @@ def flag_idle_time(dataframe):
     dataframe = dataframe.sort_values(["unit_id", "dispatch_time"])
     duplicates = dataframe.duplicated(subset=["incident_id", "unit_id", "dispatch_time"], keep="first")
     print(f"IF THIS > 0 YOU NEED TO DROP DUPLICATES BEFORE CHECKING PLAUSIBILITY: {duplicates.sum():,}")
+    prev = dataframe.groupby("unit_id")[["available_time", "enroute_time", "onscene_time", "call_latitude", "call_longitude" ,'final_priority']].shift()
 
-    prev = dataframe.groupby("unit_id")[["available_time", "call_latitude", "call_longitude"]].shift()
-
+    # useful for identifying where the unit was on partial trips
     dataframe["prev_available_time"] = prev["available_time"]
+    dataframe["prev_enroute_time"] = prev["enroute_time"]
+
+    # was the previous call reached? aka did the unit arrive on scene to the last call,
+    # if yes, we can trust this as a solid point to route home from
+    dataframe["prev_unit_arrived"] = prev["onscene_time"].notna()
+
+    # what profile to use for osrm for partial trips
+    dataframe["prev_final_priority"] = prev["final_priority"]
+
+    # where was the unit at if that call was reached??
     dataframe["prev_call_latitude"] = prev["call_latitude"]
     dataframe["prev_call_longitude"] = prev["call_longitude"]
+
+    # how long did the unit spend without a call between the last call and this one aka. time fire engines usually start driving home
     dataframe["idle_seconds"] = (dataframe["dispatch_time"] - prev["available_time"]).dt.total_seconds()
     return dataframe
 
@@ -254,8 +266,8 @@ def data_printout(dataframe):
     with pd.option_context('display.max_rows', None,'display.max_columns', None,'display.width', None):
         print("Heres the data")
         print(dataframe.shape)
-        print(dataframe.head(2).T)
-        print(dataframe.tail(2).T)
+        print(dataframe.head(4).T)
+        print(dataframe.tail(4).T)
 
         print(dataframe.dtypes) #strings
         print(dataframe.describe().T)
