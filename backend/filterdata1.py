@@ -91,10 +91,11 @@ def flag_code3(dataframe):
     return dataframe
 
 
-##this is more cancelled after call received,
+## canceled after notifying, if a unit has a missing on scene stamp but
+## transported, they will get cut if you mask on this
 def flag_cancelled(dataframe):
-    dataframe['is_cancelled_en_route'] = (dataframe['dispatch_time'].notna() & dataframe['onscene_time'].isna())
-    print(f"{dataframe['is_cancelled_en_route'].sum()} :units got cancelled en route")
+    dataframe['is_cancelled'] = (dataframe['dispatch_time'].notna() & dataframe['onscene_time'].isna())
+    print(f"{dataframe['is_cancelled'].sum()} :units got cancelled en route")
     return dataframe
 
 
@@ -158,9 +159,7 @@ def flag_arrival_order(dataframe):
 
     ##did a fire unit respond at all, and did ems beat them there
 
-    #dataframe['fire_responded'] = one_call['is_fire'].transform('any')  #what??? __ nonsense .transform will use func 'any' or 'sum' etc then broadcast it back on 'any checks if its true'
 
-    dataframe['suppression_beaten_by_ems'] = (dataframe['first_unit_type'].notna() & ~dataframe['first_unit_type'].isin(VARIABLES.SUPPRESSION_UNITS))
 
     print(f"flagged arrival order over all units now have {len(dataframe)}")
     return dataframe
@@ -205,18 +204,18 @@ def remove_unusable_calls(dataframe):
     get_idle_seconds_ok =  idle_seconds.ge(0) | idle_seconds.isna()
 
     #print(f"started at {starting_count} rows")
-    print(f"  duplicate row      : {(~get_not_duplicate).sum():,}")
-    print(f"  no dispatch time   : {(~get_dispatch).sum():,}")
-    print(f"  no location        : {(~get_location).sum():,}")
-    print(f"  bad alarm handling : {(~get_alarm_ok).sum():,}")
-    print(f"  bad turnout        : {(~get_turnout_ok).sum():,}")
-    print(f"  bad travel         : {(~get_travel_ok).sum():,}")
-    print(f"  bad commit         : {(~get_commit_ok).sum():,}")
-    print(f"  bad responseseconds : {(~get_total_ok).sum():,}")
-    print(f"  bad responsefrmalarm : {(~get_from_alarm_ok).sum():,}")
-    print(f"  bad idle seconds : {(~get_idle_seconds_ok).sum():,}")
+    print(f"  dropped duplicate row      : {(~get_not_duplicate).sum():,}")
+    print(f"  dropped no dispatch time   : {(~get_dispatch).sum():,}")
+    print(f"  dropped no location        : {(~get_location).sum():,}")
+    print(f"  droppped bad alarm handling : {(~get_alarm_ok).sum():,}")
+    print(f"  dropped bad turnout        : {(~get_turnout_ok).sum():,}")
+    print(f"  dropped bad travel         : {(~get_travel_ok).sum():,}")
+    print(f"  dropped bad commit         : {(~get_commit_ok).sum():,}")
+    print(f"  dropped bad responseseconds : {(~get_total_ok).sum():,}")
+    print(f"  dropped bad responsefrmalarm : {(~get_from_alarm_ok).sum():,}")
+    print(f"  dropped bad idle seconds : {(~get_idle_seconds_ok).sum():,}")
 
-    print(f"  is cancelled during response?: {(dataframe['is_cancelled_en_route']).sum()}, ")
+    print(f"  is cancelled during response?: {(dataframe['is_cancelled']).sum()}, ")
     print(f"  this many first arrivers: {get_first_arrivers.sum()}")
     print(f"  this many suppression: {get_suppression_units.sum()}")
     print(f"  transport units included:    {(get_transport_units).sum():,}")
@@ -252,13 +251,14 @@ def keep_dates(dataframe, start_date=None, end_date=None): #yyyy-mm-dd
     return windowed
 
 def data_printout(dataframe):
-    print("Heres the data")
-    print(dataframe.shape)
-    print(dataframe.head(2).T)
-    print(dataframe.tail(2).T)
+    with pd.option_context('display.max_rows', None,'display.max_columns', None,'display.width', None):
+        print("Heres the data")
+        print(dataframe.shape)
+        print(dataframe.head(2).T)
+        print(dataframe.tail(2).T)
 
-    print(dataframe.dtypes) #strings
-    print(dataframe.describe().T)
+        print(dataframe.dtypes) #strings
+        print(dataframe.describe().T)
 
 
 def main():
