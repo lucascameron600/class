@@ -17,14 +17,50 @@ import VARIABLES
 OSRM_URL = "http://localhost:5000" # OSRM SERVES HERE
 
 # ALL DROP CRITERIA
+# predictor of on road status, unit presses button quickly
+# means they were likely in vehicle, some dispatchers auto
+MIN_TURNOUT_SECONDS = 20
+MAX_TURNOUT_SECONDS = 180    # catch overhead and missed presses of enroute status, discard for unreliable
 
-MIN_STRAIGHT_METERS = 100      ##call is basically at the station or snapped to similar intersection
+MIN_STRAIGHT_METERS = 100      ##call is basically at the station or snapped to similar intersection, all noise
 MIN_ROUTE_METERS = 400  #based on toronto paper adapted with OSRM
 
-MIN_ROUTE_SPEED = 5
+MAX_DETOUR_RATIO =  #not sure yet if i can do this
+
+MIN_ROUTE_SPEED = 5    # only catches nonsensical times, it is important to me here
+                       # to not drop drive times that are long just by nature of them being long
+                       # since I want to model the predicted 90th
 MAX_ROUTE_SPEED = 90
 
 
+############################################################################
+######### HELPERS ##########################################################
+############################################################################
+
+def haversine_meters(lat1, lon1, lat2, lon2):
+    #GREAT CIRCLE DISTANCE ON (LAT,LON) (LAT,LON)
+    lat1, lon1, lat2, lon2 = map(np.radians, (lat1, lon1, lat2, lon2))
+    a = np.sin((lat2 - lat1) / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2
+    return 2 * 6_371_000 * np.arcsin(np.sqrta(a))
+
+
+
+def osrm_route(from_lat, from_lon, to_lat, to_lon):
+    ## returns the route in meters and  the total route seconds
+    url = f"{OSRM_URL}/route/v1/driving/{from_lon},{from_lat};{to_lon},{to_lat}?overview=false"
+
+    #json format
+    response = osrm_session.get(url, timeout = 1).json()
+
+    if response.get("code") != "Ok":
+        return np.nan, np.nan, np.nan
+
+    route = response['routes'][0]
+
+    return route['distance'], route['duration']
+
+
+def add_osrm_route(dataframe, from_cols, to_cols, name):
 
 
 def add_home_station(dataframe):
@@ -66,15 +102,14 @@ def main():
 
     calls = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
 
-    add_home_station(calls)
-
     keep_code3_engines_first_dispatched(calls)
-
+    add_home_station(calls)
+    add_station_coords(calls)
     keep_plausible_fromstation(calls)
-
+    keep_enough_idle_time(calls)
     keep_straight_line_distance(calls)
-
     keep_routed_distance(calls)
+    keep_plausible_speed(calls)
 
 
 
