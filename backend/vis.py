@@ -14,7 +14,6 @@ def main():
     engine_mask = (all_resp_23_26['is_code3'] & all_resp_23_26['unit_type'].isin(['ENGINE']))
     clean = all_resp_23_26[engine_mask]
 
-
     print(clean.describe().T)
     print(clean.head(9).T)
     print(clean.tail(9).T)
@@ -169,6 +168,9 @@ def boxplot_by_neighborhood(dataframe, area_col='neighborhood', time_col='total_
     theme.apply_transforms()
     fig.savefig(f"{title}.png", dpi=300)
     plt.close(fig)
+
+
+
 
 if __name__ == '__main__':
     main()
