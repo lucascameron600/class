@@ -1,6 +1,17 @@
 #here, we take our cleaned trips, our cleaned stations, and then we combine them to build
 #solid trips that we think are usable for prediction
 
+# important considerations from data and Large Network Travel Time Distributions for Ambulances
+
+# 1.) needs to have a solid starting point, "origin" -> filter on turnout time, if a unit smacks the button instantly
+# they were cheating or on the road already, SF CAD checks gps locations and puts units en route instantly
+# quite often rest of the preesses are within the next 10 seconds
+
+# 2.) A straight line cutoff between start and end node, < 400m too close and probably adds noise
+
+# 3.)
+
+
 ##Already have idle_time_seconds
 
 #GOAL: output a parquet that matches the trip population of map
@@ -14,22 +25,31 @@ import pyarrow.parquet as pq
 
 import VARIABLES
 
-OSRM_URL = "http://localhost:5000" # OSRM SERVES HERE
+OSRM_URL = "http://localhost:5000"
+
 
 # ALL DROP CRITERIA
 # predictor of on road status, unit presses button quickly
-# means they were likely in vehicle, some dispatchers auto
+# means they were likely in vehicle
+# this is a judgement call, based on visaulaizaion of data
 MIN_TURNOUT_SECONDS = 20
 MAX_TURNOUT_SECONDS = 180    # catch overhead and missed presses of enroute status, discard for unreliable
 
-MIN_STRAIGHT_METERS = 100      ##call is basically at the station or snapped to similar intersection, all noise
-MIN_ROUTE_METERS = 400  #based on toronto paper adapted with OSRM
 
-MAX_DETOUR_RATIO =  #not sure yet if i can do this
+#based on the paper, catches noise and double backs
+MIN_STRAIGHT_METERS = 400
+# extra catch for short travel timesj
+MIN_ROUTE_METERS = 400
 
-MIN_ROUTE_SPEED = 5    # only catches nonsensical times, it is important to me here
-                       # to not drop drive times that are long just by nature of them being long
-                       # since I want to model the predicted 90th
+
+#not sure about this yet
+MAX_DETOUR_RATIO =
+
+# loosley based on paper,
+# have to exclude nonsensical time segments
+# designed to be loose cutoffs, so we dont
+# remove any real data
+MIN_ROUTE_SPEED = 5
 MAX_ROUTE_SPEED = 90
 
 
