@@ -1,4 +1,6 @@
--- Car profile
+-- Lukes CUSTOM SF code3 response fire engine profile 
+-- Hand tuned based on oberservational analysis of SF fire engine travel behavior
+-- 
 
 api_version = 4
 
