@@ -42,11 +42,11 @@ function setup()
     default_speed             = 10,
     oneway_handling           = true,
     side_road_multiplier      = 0.8,
-    turn_penalty              = 12, --long wheelbase on these guys, you tried turning an engine in SF??
+    turn_penalty              = 16, --long wheelbase on these guys, you tried turning an engine in SF??
     
     speed_reduction           = 0.8, --unused
-    turn_bias                 = 1, --neutral turn bias, need to get to call.
-    oncoming_turn_penalty     = 2.0, --will replace this with lane clearing
+    turn_bias                 = 1.0, --neutral turn bias, need to get to call.
+    oncoming_turn_penalty     = 1.0, --will replace this with lane clearing
     cardinal_directions       = false,
 
     lane_markings_penalty     = 0.75,
@@ -349,7 +349,6 @@ local POSITIVE = Set { 'yes', 'designated', 'permissive' }
 local NO_MODES = Sequence {}
 
 
-
 local function engine_allowed(obj)
   local e = obj:get_value_by_key('emergency')
   if e then
@@ -372,7 +371,7 @@ local function highway_filter(profile, way, result, data)
   end
 end
 
---  if any type of vehicle can access this road than so can the fire engine
+--  if any type of vehicle can access this road so can the fire engine
 local function engine_access(profile, way, result, data)
   if engine_allowed(way) then
     data.forward_access, data.backward_access = 'yes', 'yes'
@@ -381,8 +380,8 @@ local function engine_access(profile, way, result, data)
   return WayHandlers.access(profile, way, result, data)
 end
 
--- Stock oneway handling, but ignoring mode exemptions. if a bus can make the turn
--- so can the engine
+-- stock oneway handling, but ignoring bus,taxi,etc exemptions. if a bus can make the turn
+-- so can the fire engine
 local function strict_oneway(profile, way, result, data)
   local saved = profile.restrictions
   profile.restrictions = NO_MODES
@@ -405,7 +404,7 @@ local function lanes_for_turn(profile, way, result, data)
   result.highway_turn_classification = math.min(math.max(per_dir, 1), 15)  -- OSRM requires < 16
 end
 
--- Prefer arterials over cutting through neighborhoods (route choice only).
+-- Prefer arterials over cutting through neighborhoods ONLY EFFECTS ROUTE CHOICE
 local function arterial_preference(profile, way, result, data)
   local pref = profile.class_preference[data.highway]
   if pref then
