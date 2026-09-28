@@ -3,7 +3,8 @@
 #   docker compose up -d                      build the routing files and start the router
 #   docker compose logs -f osrm-prep          watch the build 
 #   docker compose up -d --force-recreate     after editing the profile: rebuild + restart
-#
+#   
+#   docker run -p 9966:9966 -e OSRM_BACKEND='http://localhost:5000' -e OSRM_TILE_URL='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' ghcr.io/project-osrm/osrm-frontend:latest
 #############  IMPORTANT FILES  #################################################
 #############     in /data      ###############################################
 #
@@ -18,6 +19,7 @@
 #
 # PINNED TO CURRENT IMAGE
 
+###################################################################3
 services:
 
   # builds the routing files, then exits. the router waits for it to succeed
