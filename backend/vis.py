@@ -23,11 +23,11 @@ def main():
     #plot_multi_hist(clean, "Response Intervals, transporting units, Code 3 only")
     #plot_hist(clean['total_response_seconds'], 'Total_response_seconds, transport only, code 3')
     #kde_by_station(clean, station_col='station_area', title='stations_suppression')
-    boxplot_by_engine(clean, station_col='unit_id', title='Per engine travel time all calls')
-
-    ambulance_mask = (all_resp_23_26['is_transport'] & all_resp_23_26['is_code3'])
-    ambulances = all_resp_23_26[ambulance_mask]
-    boxplot_by_neighborhood(ambulances, title='ambulance response time by neighborhood code 3')
+    #boxplot_by_engine(clean, station_col='unit_id', title='Per engine travel time all calls')
+    turnout_vs_idle(clean, title='Turnout vs ideltime, code 3 engines')
+    #ambulance_mask = (all_resp_23_26['is_transport'] & all_resp_23_26['is_code3'])
+    #ambulances = all_resp_23_26[ambulance_mask]
+    #boxplot_by_neighborhood(ambulances, title='ambulance response time by neighborhood code 3')
 
 
 #------------------------------------------------------
@@ -169,6 +169,37 @@ def boxplot_by_neighborhood(dataframe, area_col='neighborhood', time_col='total_
     fig.savefig(f"{title}.png", dpi=300)
     plt.close(fig)
 
+
+def turnout_vs_idle(dataframe, title=''):
+    #crews dispatched right after clearing a call are usually still in the rig, so their turnout is near zero
+    theme = load_theme('umbra_dark')
+    theme.apply()
+
+    df = dataframe.dropna(subset=['idle_seconds', 'turnout_seconds'])[['idle_seconds', 'turnout_seconds']]
+    #just cleared the station
+    just_cleared = df[df['idle_seconds'].between(0, 300, inclusive='left')]
+
+    #had time to get home
+    long_idle = df[df['idle_seconds'] > 3600]
+
+    groups = pd.concat([
+        just_cleared.assign(idle_group=f"just cleared (< 5 min idle) (n={len(just_cleared):,})"), long_idle.assign(idle_group=f"long idle (> 60 min) (n={len(long_idle):,})"),
+        ], ignore_index=True)
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    #common_norm off so group size doesnt change the shape
+    sea.kdeplot(data=groups, x='turnout_seconds', hue='idle_group', common_norm=False, fill=True, alpha=0.20, cut=0, ax=ax)
+    ax.axvline(20, color='red', linestyle='--')  ## MIN_TURNOUT_SECONDS cutoff
+    ax.set_xlim(0, 240)
+    ax.set_xlabel('Turnout Seconds')
+    ax.set_ylabel('Probability Density')
+    ax.set_title(title)
+
+    plt.tight_layout()
+    theme.apply_transforms()
+    fig.savefig(f"{title}.png", dpi=300)
+    plt.close(fig)
 
 
 
