@@ -1,9 +1,9 @@
 # OSRM for SF with SPEEDS.CSV AND emergency.lua profile.
 #
 #   docker compose up -d                      build the routing files and start the router
-#   docker compose logs -f osrm-prep          watch the build
+#   docker compose logs -f osrm-prep          watch the build 
 #   docker compose up -d --force-recreate     after editing the profile: rebuild + restart
-#
+#   
 #   docker run -p 9966:9966 -e OSRM_BACKEND='http://localhost:5000' -e OSRM_TILE_URL='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' ghcr.io/project-osrm/osrm-frontend:latest
 #
 #   sudo docker run -p 9966:9966  -e OSRM_BACKEND='http://localhost:5000' -e OSRM_TILE_URL='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'  -e OSRM_CENTER='52.52,13.40'   -e OSRM_ZOOM='12'   osrm/osrm-frontend
@@ -21,67 +21,37 @@
 #
 # PINNED TO CURRENT IMAGE
 
-###################################################################
-
-
+###################################################################3
 services:
 
+  # builds the routing files, then exits. the router waits for it to succeed
   osrm-prep:
     image: ghcr.io/project-osrm/osrm-backend:v26.8.0-debian
-
-    user: "${OSRM_UID:-1000}:${OSRM_GID:-1000}"
-
     volumes:
       - ./data:/data
-
-      # Custom profile
-      - ./profiles/emergency.lua:/usr/local/share/osrm/profiles/emergency.lua:ro
-
-      # Your modified shared handler
-      - ./profiles/lib/way_handlers.lua:/usr/local/share/osrm/profiles/lib/way_handlers.lua:ro
-
     entrypoint: ["/bin/sh", "-c"]
-
     command:
       - |
         set -e
-
-        osrm-extract \
-          -p /usr/local/share/osrm/profiles/emergency.lua \
-          /data/sf.osm.pbf
-
+        test -f /profiles/emergency.lua || { echo "missing osrm/profiles/emergency.lua"; exit 1; }
+        test -f /data/sf.osm.pbf || { echo "missing osrm/data/sf.osm.pbf"; exit 1; }
+        osrm-extract -p /profiles/emergency.lua /data/sf.osm.pbf
         osrm-partition /data/sf.osrm
-
         if [ -f /data/speeds.csv ]; then
-          echo "Using segment speeds from speeds.csv"
-
-          osrm-customize \
-            --segment-speed-file /data/speeds.csv \
-            /data/sf.osrm
+          echo "using segment speeds from osrm/data/speeds.csv"
+          osrm-customize --segment-speed-file /data/speeds.csv /data/sf.osrm
         else
           osrm-customize /data/sf.osrm
         fi
 
-
   osrm:
     image: ghcr.io/project-osrm/osrm-backend:v26.8.0-debian
-
-    user: "${OSRM_UID:-1000}:${OSRM_GID:-1000}"
-
     volumes:
       - ./data:/data:ro
-
-    command:
-      [
-        "osrm-routed",
-        "--algorithm",
-        "mld",
-        "--max-table-size",
-        "1000",
-        "/data/sf.osrm"
-      ]
-
+    command: ["osrm-routed", "--algorithm", "mld", "--max-table-size", "1000", "/data/sf.osrm"]
     ports:
       - "5000:5000"
-
+    depends_on:
+      osrm-prep:
+        condition: service_completed_successfully
     restart: unless-stopped
