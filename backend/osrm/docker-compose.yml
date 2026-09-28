@@ -5,6 +5,8 @@
 #   docker compose up -d --force-recreate     after editing the profile: rebuild + restart
 #   
 #   docker run -p 9966:9966 -e OSRM_BACKEND='http://localhost:5000' -e OSRM_TILE_URL='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' ghcr.io/project-osrm/osrm-frontend:latest
+#
+#   sudo docker run -p 9966:9966  -e OSRM_BACKEND='http://localhost:5000' -e OSRM_TILE_URL='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'  -e OSRM_CENTER='52.52,13.40'   -e OSRM_ZOOM='12'   osrm/osrm-frontend
 #############  IMPORTANT FILES  #################################################
 #############     in /data      ###############################################
 #
