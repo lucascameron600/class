@@ -1,21 +1,18 @@
 -- LUKES CUSTOM SF code 3 fire engine profile
--- Derived from the stock OSRM car profile 
+-- Derived from the stock OSRM car profile
 --
 -- changes from stock  car.lua:
---   ACCESS   wil use any road a motor vehicle can physically drive: bus/taxi/psv-only impt for SF
---            typically limited streets included, tested on market street, 
---            emergency-access roads, HOV, motorcar=no is good too
---            
---            Private/destination roads get a small entry penalty instead of the
---            stock near-infinite one. no footways or any path that wont be drivable
 --
---   ONEWAYS  Never drives against traffic on arterials, links or roundabouts.
---            On minor streets the wrong way exists as a separate "contraflow"
---            mode: slow, weighted heavily, with a fixed entry penalty. The router
---            only uses it when it saves an around-the-block loop, which in
---            practice means the final (or first) block. Tune with contraflow_*.
---            Contraflow steps show up in responses as mode "pushing bike";
---            relabel that in your UI (e.g. "WRONG WAY - final block").
+--   ACCESS   wil use any road a motor vehicle can physically drive, bus/taxi/any impt for SF
+--            tested on market street
+--            emergency-access roads, HOV, motorcar=no is good too
+--
+--            private roads get a small entry penalty instead of the
+--            --no footways or any path that wont be drivable
+--
+--   ONEWAYS  never drives against traffic, on any road. Bus/psv exemptions
+--            (oneway:bus=no, oneway:psv=no) are ignored so bus-only lanes that
+--            run against traffic stay one-way for the engine.
 --
 --
 --   TURNS    turn restrictions apply, except ones exempting buses/taxis/psv/emergency.
@@ -41,8 +38,9 @@ function setup()
   return {
     properties = {
       max_speed_for_map_matching      = 180/3.6, -- 180kmph -> m/s
-      -- routability: ETA stays pure duration, route choice uses penalties
+        --tried duration worked good but too fast needed custom
       weight_name                     = 'routability',
+
       process_call_tagless_node      = false,
       u_turn_penalty                 = 120,  -- u turn impossible for engine in sf
       continue_straight_at_waypoint  = true,
@@ -62,7 +60,7 @@ function setup()
     lane_markings_penalty     = 0.75,
     priority_penalty          = 0.7,
 
-    -- route choice is extremely important here, this will effect what route the 
+    -- route choice is extremely important here, this will effect what route the
     -- engine chooses, still trying to tune these but this is based soley off exeperience
     -- and my estimation of how a fire engine drives.
     class_preference = {
@@ -70,30 +68,22 @@ function setup()
       living_street = 0.5, service = 0.5
     },
 
+
+    -- Code 3 NEW
     ---------------------------------------------------------------------------
-    -- Code 3 extras
-    ---------------------------------------------------------------------------
+
     -- Seconds of routing weight for entering a private/destination/etc. road.
     -- Stock car.lua uses max_turn_weight here, which walls those roads off.
     restricted_entry_penalty  = 30,
 
-    -- Wrong-way travel on minor one-ways ("last block" behavior).
-    contraflow_mode           = mode.pushing_bike,  -- any distinct mode works; this one is shown as "pushing bike"
-    contraflow_highways       = Set { 'residential', 'unclassified', 'living_street', 'service' },
-    contraflow_speed          = 15,    -- km/h, real ETA while creeping the wrong way
-    contraflow_rate_factor    = 0.5,   -- weight multiplier = 1 / this (0.5 -> 2x)
-    contraflow_entry_penalty  = 30,    -- seconds of weight each time contraflow starts
-    -- Raise the last two to make contraflow rarer; lower them to allow it more.
-    -- Set contraflow_highways = Set {} to disable contraflow entirely.
-
-    ---------------------------------------------------------------------------
-    -- Vehicle: Type 1 engine. Replace with your apparatus specs.
+    ---------
+    -- Vehicle: ENGINE
     ---------------------------------------------------------------------------
     vehicle_height = 3.3,     -- m
-    vehicle_width  = 2.5,     -- m, body width; note ways tagged narrow=yes (~2.2 m) become unroutable
-    vehicle_length = 10.5,    -- m
+    vehicle_width  = 2.5,
+    vehicle_length = 10.5,
     vehicle_weight = 19000,   -- kg
-    vehicle_max_speed = 88,   -- km/h, governed top speed
+    vehicle_max_speed = 88,   -- km/h GOVERNED speed
 
     suffix_list = {
       'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'North', 'South', 'West', 'East', 'Nor', 'Sou', 'We', 'Ea'
@@ -194,7 +184,7 @@ function setup()
       'construction',
       'proposed'
     },
-    
+
     --starting points for SF, need to calibrate these later
     -- in kmph
     speeds = Sequence {
@@ -381,7 +371,7 @@ local function engine_access(profile, way, result, data)
 end
 
 -- Stock oneway handling, but ignoring mode exemptions (oneway:bus=no,
--- oneway:psv=no, ...) so contraflow bus lanes stay one-way for the engine.
+-- oneway:psv=no, ...) so bus-only lanes against traffic stay one-way for the engine.
 -- Safe: turn restrictions read profile.restrictions once at setup, and each
 -- OSRM thread has its own Lua state.
 local function strict_oneway(profile, way, result, data)
@@ -390,35 +380,6 @@ local function strict_oneway(profile, way, result, data)
   local r = WayHandlers.oneway(profile, way, result, data)
   profile.restrictions = saved
   return r
-end
-
--- On minor one-ways, open the wrong direction as a separate travel mode.
-local function contraflow_mark(profile, way, result, data)
-  if not profile.contraflow_highways[data.highway] then return end
-  local junction = way:get_value_by_key('junction')
-  if junction == 'roundabout' or junction == 'circular' then return end
-
-  local oneway = way:get_value_by_key('oneway')
-  if (oneway == 'yes' or oneway == '1' or oneway == 'true')
-     and result.forward_mode ~= mode.inaccessible then
-    result.backward_mode = profile.contraflow_mode
-    data.contraflow = 'backward'
-  elseif oneway == '-1' and result.backward_mode ~= mode.inaccessible then
-    result.forward_mode = profile.contraflow_mode
-    data.contraflow = 'forward'
-  end
-end
-
--- Slow real speed + heavy routing weight for the contraflow direction.
--- Runs after penalties/weights so nothing overwrites it.
-local function contraflow_cost(profile, way, result, data)
-  if data.contraflow == 'backward' and result.backward_speed > 0 then
-    result.backward_speed = math.min(result.backward_speed, profile.contraflow_speed)
-    result.backward_rate  = result.backward_speed / 3.6 * profile.contraflow_rate_factor
-  elseif data.contraflow == 'forward' and result.forward_speed > 0 then
-    result.forward_speed = math.min(result.forward_speed, profile.contraflow_speed)
-    result.forward_rate  = result.forward_speed / 3.6 * profile.contraflow_rate_factor
-  end
 end
 
 -- Prefer arterials over cutting through neighborhoods (route choice only).
@@ -521,7 +482,6 @@ function process_way(profile, way, result, relations)
 
     engine_access,                  -- replace WayHandlers.access
     strict_oneway,                  -- replace WayHandlers.oneway
-    contraflow_mark,                -- wrong way on minor one-ways, as a separate mode
 
     WayHandlers.destinations,
 
@@ -551,8 +511,6 @@ function process_way(profile, way, result, relations)
     WayHandlers.driving_side,
     WayHandlers.names,
     WayHandlers.weights,
-
-    contraflow_cost,                -- final decision on the opposition speed/rate
 
     WayHandlers.way_classification_for_turn
   }
@@ -620,10 +578,6 @@ function process_turn(profile, turn)
       turn.weight = turn.weight + profile.restricted_entry_penalty
     end
 
-    -- Fixed cost each time the route starts going the wrong way
-    if turn.target_mode == profile.contraflow_mode and turn.source_mode ~= profile.contraflow_mode then
-      turn.weight = turn.weight + profile.contraflow_entry_penalty
-    end
   end
 end
 
