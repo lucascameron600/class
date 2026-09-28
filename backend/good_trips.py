@@ -7,9 +7,10 @@
 # they were cheating or on the road already, SF CAD checks gps locations and puts units en route instantly
 # quite often rest of the preesses are within the next 10 seconds
 
-# 2.) A straight line cutoff between start and end node, < 400m too close and probably adds noise
+# 2.) A straight line cutoff between start and end node, < 400m too close could uturn or be noisy
 
-# 3.)
+# 3.) A secondsary routed distance cutoff to make sure extremely low travel times dont make it in
+
 
 
 ##Already have idle_time_seconds
@@ -104,9 +105,10 @@ def keep_code3_engines_first_dispatched(dataframe):
 def keep_plausible_fromstation(dataframe):
     ## did this unit start at its station? according to exploratory visualization,
     ## a clean predictor of weather a unit is at station, is how fast the unit presses the button
-    ## some stations might press the button too early but from what I have seen
-    ## this is suprisingly low and possibly localized to a few stations(unchecked)
-    ## might hurt on certain stations
+    ## attempts to deal with crews forgetting to press button
+    ## paper solved wtih gps map matching
+    mask = dataframe['turnout_seconds'].between(MIN_TURNOUT_SECONDS, MAX_TURNOUT_SECONDS)
+    return dataframe[mask]
 
 
 def keep_straight_line_distance():
@@ -116,7 +118,6 @@ def keep_straight_line_distance():
 def keep_routed_distance()
     ## route call with osrm and see if it is over 400 meters, and
     ## also
-def
 def main():
     start_time = time.perf_counter()
 
