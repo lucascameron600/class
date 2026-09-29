@@ -23,6 +23,12 @@ Utils = require("lib/utils")
 Measure = require("lib/measure")
 
 function setup()
+
+     ------------------------
+     ---NEW, SINGAL COST FOR CODE 3 FIRE TRUCK
+     --- nvm this is a bad idea
+     --- planning to update speed list later, can feed signals into stan possibly as well
+     ---
   return {
     properties = {
       max_speed_for_map_matching      = 180/3.6, -- 180kmph -> m/s
@@ -35,7 +41,7 @@ function setup()
       process_call_tagless_node      = false,
       u_turn_penalty                 = 90,    --- u turn hard in sf L
       continue_straight_at_waypoint  = true,
-      use_turn_restrictions          = true,
+      use_turn_restrictions          = false, -- no turn rest L
       left_hand_driving              = false,
     },
 
@@ -44,7 +50,7 @@ function setup()
     oneway_handling           = true,
     side_road_multiplier      = 0.8,
     turn_penalty              = 12, --long wheelbase, need more long turns, pref long straight L
-    speed_reduction           = 0.8, --unused
+    speed_reduction           = 1.0, -- reduced to none speed reduction .8 stock applies to cars that have to wait for trafffic L
     turn_bias                 = 1.075,
     cardinal_directions       = false,
     
@@ -95,17 +101,17 @@ function setup()
     priority_penalty          = 0.7,
 
     -- Size of the vehicle, to be limited by physical restriction of the way
-    vehicle_height = 2.0, -- in meters, 2.0m is the height slightly above biggest SUVs
-    vehicle_width = 1.9, -- in meters, ways with narrow tag are considered narrower than 2.2m
+    vehicle_height = 3.3, -- in meters, 2.0m is the height slightly above biggest SUVs
+    vehicle_width = 2.6, -- in meters, ways with narrow tag are considered narrower than 2.2m
 
     -- Size of the vehicle, to be limited mostly by legal restriction of the way
-    vehicle_length = 4.8, -- in meters, 4.8m is the length of large or family car
-    vehicle_weight = 2000, -- in kilograms
+    vehicle_length = 10.5, -- in meters, 4.8m is the length of large or family car
+    vehicle_weight = 18000, -- in kilograms
 
     -- Optional: upper limit for all speeds (e.g., 87 for trucks)
     -- When set, no derived speed will exceed this value
     -- When nil (default), no additional capping is applied
-    vehicle_max_speed = nil, -- in km/h
+    vehicle_max_speed = 95, -- in km/h
 
     -- a list of suffixes to suppress in name change instructions. The suffixes also include common substrings of each other
     suffix_list = {
@@ -208,25 +214,23 @@ function setup()
     -- could change
     speeds = Sequence {
       highway = {
-        motorway        = 90,
-        motorway_link   = 45,
-        trunk           = 85,
+        motorway        = 100,
+        motorway_link   = 56,
+        trunk           = 56,
         trunk_link      = 40,
-        primary         = 65,
-        primary_link    = 30,
-        secondary       = 55,
-        secondary_link  = 25,
+        primary         = 48,
+        primary_link    = 40,
+        secondary       = 48,
+        secondary_link  = 40,
         tertiary        = 40,
-        tertiary_link   = 20,
-        unclassified    = 25,
-        residential     = 25,
-        living_street   = 10,
-        service         = 15,
-        -- winter highway types (OSM highway=winter_road / highway=ice_road)
-        winter_road     = 20,
-        ice_road        = 15
+        tertiary_link   = 40,
+        unclassified    = 40,
+        residential     = 40,
+        living_street   = 24,
+        service         = 24,
       }
     },
+
 
     service_penalties = {
       alley             = 0.5,
