@@ -301,6 +301,9 @@ function WayHandlers.speed(profile,way,result,data)
     -- set speed by way type
     result.forward_speed = speed
     result.backward_speed = speed
+---NEWNEWNEW
+  elseif profile.require_configured_speed then
+      return false
   else
     -- Set the avg speed on ways that are marked accessible
     if profile.access_tag_whitelist[data.forward_access] then

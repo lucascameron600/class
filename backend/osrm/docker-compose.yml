@@ -28,7 +28,7 @@ services:
 
   osrm-prep:
     image: ghcr.io/project-osrm/osrm-backend:v26.8.0-debian
-
+    
     user: "${OSRM_UID:-1000}:${OSRM_GID:-1000}"
 
     volumes:
@@ -65,6 +65,9 @@ services:
 
   osrm:
     image: ghcr.io/project-osrm/osrm-backend:v26.8.0-debian
+    depends_on:
+      osrm-prep:
+        condition: service_completed_successfully
 
     user: "${OSRM_UID:-1000}:${OSRM_GID:-1000}"
 
