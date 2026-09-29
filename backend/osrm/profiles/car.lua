@@ -39,6 +39,8 @@ function setup()
     turn_bias                 = 1.075,
     cardinal_directions       = false,
 
+    require_configured_speed = false,
+
     -- Penalty multiplier for roads with no lane markings (lane_markings=no)
     -- Applied to bidirectional roads to prefer roads with clear lane markings
     lane_markings_penalty     = 0.75,
