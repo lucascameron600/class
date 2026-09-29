@@ -1,4 +1,13 @@
--- Car profile
+-- LUKES CUSTOM SF PROFILE
+--
+-- ADDED
+--  
+--  SETTINGS: custom settings to mimic a fire engine type 1 mostly adjusted weight length
+--  turn penalties and added new class preference settings to adjust how osrm decides
+--  rate cost     --longboi
+--
+--
+--
 
 api_version = 4
 
@@ -14,6 +23,12 @@ Utils = require("lib/utils")
 Measure = require("lib/measure")
 
 function setup()
+
+     ------------------------
+     ---NEW, SINGAL COST FOR CODE 3 FIRE TRUCK
+     --- nvm this is a bad idea
+     --- planning to update speed list later, can feed signals into stan possibly as well
+     ---
   return {
     properties = {
       max_speed_for_map_matching      = 180/3.6, -- 180kmph -> m/s
@@ -24,9 +39,9 @@ function setup()
       -- For shortest distance without penalties for accessibility
       -- weight_name                     = 'distance',
       process_call_tagless_node      = false,
-      u_turn_penalty                 = 20,
+      u_turn_penalty                 = 90,    --- u turn hard in sf L
       continue_straight_at_waypoint  = true,
-      use_turn_restrictions          = true,
+      use_turn_restrictions          = false, -- no turn rest L
       left_hand_driving              = false,
     },
 
@@ -34,10 +49,52 @@ function setup()
     default_speed             = 10,
     oneway_handling           = true,
     side_road_multiplier      = 0.8,
-    turn_penalty              = 7.5,
-    speed_reduction           = 0.8,
+    turn_penalty              = 12, --long wheelbase, need more long turns, pref long straight L
+    speed_reduction           = 1, -- reduced to none speed reduction .8 stock applies to cars that have to wait for trafffic L
     turn_bias                 = 1.075,
     cardinal_directions       = false,
+    
+    ------------------------
+    -- NEW FUNCITON SETTINGS
+    -- still attempting to tune, this only affects route choice, 
+    -- 
+    -- result.forward_rate = result.forward_rate * class_preference affects how the routing engine
+    -- will choose a road through new local function arterial preference
+    --
+    require_configured_speed = true,
+
+
+   class_preference = {
+    motorway        = 1.00,
+    motorway_link   = 1.00,
+
+    trunk           = 1.00,
+    trunk_link      = 1.00,
+
+    primary         = 1.00,
+    primary_link    = 1.00,
+
+    secondary       = 1.00,
+    secondary_link  = 1.00,
+
+    tertiary        = 1.00,
+    tertiary_link   = 1.00,
+
+    unclassified    = 0.75,
+    residential     = 0.60,
+
+    living_street   = 0.40,
+    service         = 0.35
+}, 
+    ------------------------------
+    ---TRAFFIC SIGNALS
+        control_penalties = {
+      --[obstacle_type.stop]            = 2,
+      --[obstacle_type.stop_minor]      = 2,
+      --[obstacle_type.traffic_signals] = 5,
+    },
+
+    
 
     -- Penalty multiplier for roads with no lane markings (lane_markings=no)
     -- Applied to bidirectional roads to prefer roads with clear lane markings
@@ -51,17 +108,17 @@ function setup()
     priority_penalty          = 0.7,
 
     -- Size of the vehicle, to be limited by physical restriction of the way
-    vehicle_height = 2.0, -- in meters, 2.0m is the height slightly above biggest SUVs
-    vehicle_width = 1.9, -- in meters, ways with narrow tag are considered narrower than 2.2m
+    vehicle_height = 3.3, -- in meters, 2.0m is the height slightly above biggest SUVs
+    vehicle_width = 2.6, -- in meters, ways with narrow tag are considered narrower than 2.2m
 
     -- Size of the vehicle, to be limited mostly by legal restriction of the way
-    vehicle_length = 4.8, -- in meters, 4.8m is the length of large or family car
-    vehicle_weight = 2000, -- in kilograms
+    vehicle_length = 10.5, -- in meters, 4.8m is the length of large or family car
+    vehicle_weight = 18000, -- in kilograms
 
     -- Optional: upper limit for all speeds (e.g., 87 for trucks)
     -- When set, no derived speed will exceed this value
     -- When nil (default), no additional capping is applied
-    vehicle_max_speed = nil, -- in km/h
+    vehicle_max_speed = 95, -- in km/h
 
     -- a list of suffixes to suppress in name change instructions. The suffixes also include common substrings of each other
     suffix_list = {
@@ -81,6 +138,10 @@ function setup()
 
     access_tag_whitelist = Set {
       'yes',
+      'emergency', --new
+      'psv',   --
+      'bus',   --
+      'taxi',  -- through new
       'motorcar',
       'motor_vehicle',
       'vehicle',
@@ -93,22 +154,8 @@ function setup()
       'no',
       'agricultural',
       'forestry',
-      'emergency',
-      'psv',
-      'taxi', -- sub class of psv
-      'share_taxi', -- sub class of psv
-      'minibus', -- sub class of psv
-      'bus', -- sub class of psv
       'foot',
-      'emergency_vehicle',
-      'restricted',
       'military',
-      'official',
-      'customers',
-      'private',
-      'delivery',
-      'destination',
-      'permit',
       'residents'
     },
 
@@ -128,18 +175,24 @@ function setup()
     },
 
     access_tags_hierarchy = Sequence {
-      'motorcar',
+      'emergency',
+      'psv', --new , removed motorcar
+      'bus',  -- new
+      'taxi',  --new
       'motor_vehicle',
       'vehicle',
       'access'
     },
 
     service_tag_forbidden = Set {
-      'emergency_access'
     },
 
     restrictions = Sequence {
+      'emergency', 
       'motorcar',
+      'psv', 
+      'bus',
+      'taxi',
       'motor_vehicle',
       'vehicle'
     },
@@ -160,33 +213,31 @@ function setup()
       -- 'toll',    -- uncomment this to avoid tolls
       'reversible',
       'impassable',
-      'hov_lanes',
       'steps',
       'construction',
       'proposed'
     },
-
+    --still uses max speed multiplier to adjust penalties
+    -- could change
     speeds = Sequence {
       highway = {
-        motorway        = 90,
-        motorway_link   = 45,
-        trunk           = 85,
+        motorway        = 100,
+        motorway_link   = 56,
+        trunk           = 56,
         trunk_link      = 40,
-        primary         = 65,
-        primary_link    = 30,
-        secondary       = 55,
-        secondary_link  = 25,
-        tertiary        = 40,
-        tertiary_link   = 20,
-        unclassified    = 25,
-        residential     = 25,
-        living_street   = 10,
-        service         = 15,
-        -- winter highway types (OSM highway=winter_road / highway=ice_road)
-        winter_road     = 20,
-        ice_road        = 15
+        primary         = 48,
+        primary_link    = 40,
+        secondary       = 48,
+        secondary_link  = 40,
+        tertiary        = 35,
+        tertiary_link   = 35,
+        unclassified    = 35,
+        residential     = 35,
+        living_street   = 22,
+        service         = 22,
       }
     },
+
 
     service_penalties = {
       alley             = 0.5,
@@ -217,7 +268,7 @@ function setup()
       'living_street',
       'unclassified',
       'service',
-      'winter_road',
+      'winter_road', --we got ice road truckers in SF?
       'ice_road'
     },
 
@@ -372,7 +423,21 @@ function setup()
     }
   }
 end
+-------ENGINE HELPERS----------------------------------------------------------------------
+ -- prefer solid arterials over cutting through neighborhoods,, route choice only
 
+
+local function arterial_preference(profile, way, result, data)
+   local pref = profile.class_preference[data.highway]
+
+   if pref then
+     if result.forward_rate > 0 then result.forward_rate = result.forward_rate * pref end
+     if result.backward_rate > 0 then result.backward_rate = result.backward_rate * pref end
+
+   end
+ end
+
+ ---------------------------------------------------------------------------
 function process_node(profile, node, result, relations)
   -- parse access and barrier tags
   local access = resolve_access(find_access_tag(node, profile.access_tags_hierarchy), profile)
@@ -502,7 +567,10 @@ function process_way(profile, way, result, relations)
     WayHandlers.vehicle_speed_cap,
 
     WayHandlers.penalties,
-
+    
+    ----------------------NEWNEW
+    arterial_preference,
+    ---------------------------
     -- compute class labels
     WayHandlers.classes,
 
@@ -555,7 +623,7 @@ function process_turn(profile, turn)
         and turn.target_road.distance > 20 then
             goto skip
     end
-    turn.duration = turn.duration + obs.duration
+    turn.duration = turn.duration + (profile.control_penalties[obs.type] or obs.duration)
     ::skip::
   end
 
