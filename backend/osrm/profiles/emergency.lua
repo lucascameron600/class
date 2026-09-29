@@ -50,7 +50,7 @@ function setup()
     oneway_handling           = true,
     side_road_multiplier      = 0.8,
     turn_penalty              = 12, --long wheelbase, need more long turns, pref long straight L
-    speed_reduction           = 1.0, -- reduced to none speed reduction .8 stock applies to cars that have to wait for trafffic L
+    speed_reduction           = 1, -- reduced to none speed reduction .8 stock applies to cars that have to wait for trafffic L
     turn_bias                 = 1.075,
     cardinal_directions       = false,
     
@@ -222,12 +222,12 @@ function setup()
         primary_link    = 40,
         secondary       = 48,
         secondary_link  = 40,
-        tertiary        = 40,
-        tertiary_link   = 40,
-        unclassified    = 40,
-        residential     = 40,
-        living_street   = 24,
-        service         = 24,
+        tertiary        = 35,
+        tertiary_link   = 35,
+        unclassified    = 35,
+        residential     = 35,
+        living_street   = 22,
+        service         = 22,
       }
     },
 

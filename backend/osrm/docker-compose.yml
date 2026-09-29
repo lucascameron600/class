@@ -33,11 +33,9 @@ services:
 
     volumes:
       - ./data:/data
-
-      # Custom profile
+      # custom profile
       - ./profiles/emergency.lua:/usr/local/share/osrm/profiles/emergency.lua:ro
-
-      # Your modified shared handler
+      #  modified handler
       - ./profiles/lib/way_handlers.lua:/usr/local/share/osrm/profiles/lib/way_handlers.lua:ro
 
     entrypoint: ["/bin/sh", "-c"]
@@ -76,11 +74,8 @@ services:
 
     command:
       [
-        "osrm-routed",
-        "--algorithm",
-        "mld",
-        "--max-table-size",
-        "1000",
+        "osrm-routed", "--algorithm", "mld",
+        "--max-table-size", "1000",
         "/data/sf.osrm"
       ]
 
