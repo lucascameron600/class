@@ -39,7 +39,7 @@ function setup()
       -- For shortest distance without penalties for accessibility
       -- weight_name                     = 'distance',
       process_call_tagless_node      = false,
-      u_turn_penalty                 = 90,    --- u turn hard in sf L
+      u_turn_penalty                 = 45,    --- u turn hard in sf, CHANGED FROM 20stock! crews need spotters when doing a u turn, and u turns are hard on narrow ways
       continue_straight_at_waypoint  = true,
       use_turn_restrictions          = false, -- no turn rest L
       left_hand_driving              = false,
@@ -423,12 +423,12 @@ function setup()
     }
   }
 end
--------ENGINE HELPERS----------------------------------------------------------------------
- -- prefer solid arterials over cutting through neighborhoods,, route choice only
-
-
-local function arterial_preference(profile, way, result, data)
-   local pref = profile.class_preference[data.highway]
+-------CODE 3 ENGINE HELPERS----------------------------------------------------------------------
+ 
+-- functions that wrap around stock OSRM
+-- adds extra "pref" multipliers to prefer large wide arterials.
+function arterial_preference(profile, way, result, data)
+    local pref = profile.class_preference[data.highway]
 
    if pref then
      if result.forward_rate > 0 then result.forward_rate = result.forward_rate * pref end
@@ -436,6 +436,8 @@ local function arterial_preference(profile, way, result, data)
 
    end
  end
+
+
 
  ---------------------------------------------------------------------------
 function process_node(profile, node, result, relations)
@@ -568,9 +570,12 @@ function process_way(profile, way, result, relations)
 
     WayHandlers.penalties,
     
+    
     ----------------------NEWNEW
     arterial_preference,
     ---------------------------
+    
+
     -- compute class labels
     WayHandlers.classes,
 
