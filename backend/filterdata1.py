@@ -15,6 +15,8 @@ EMERGENT_PRIORITY_CODES = ["3"]                 #sf counts P3 as a code 3 emerge
 ##  " E10" -> "E10"   10.0 -> "10"
 ##astype(str) on a float column gives 3.0 which matches nothing
 def normalize_code(series):
+    # string is pd nullable string type
+    # '' would break comparison
     series = series.astype("string").str.strip().str.upper()
     series = series.str.replace(r"\.0$", "", regex=True)
     return series.where(series.str.len() > 0, other=pd.NA)
@@ -97,10 +99,6 @@ def flag_cancelled(dataframe):
     dataframe['is_cancelled'] = (dataframe['dispatch_time'].notna() & dataframe['onscene_time'].isna())
     print(f"{dataframe['is_cancelled'].sum()} :units got cancelled en route")
     return dataframe
-
-
-
-
 
 
 def flag_idle_time(dataframe):
@@ -234,6 +232,40 @@ def remove_unusable_calls(dataframe):
     calls_to_keep = (get_not_duplicate & get_dispatch & get_location & get_travel_ok
                      & get_turnout_ok & get_commit_ok & get_alarm_ok & get_total_ok
                      & get_from_alarm_ok & get_idle_seconds_ok)
+
+
+    ####################### LOGGING BEFORE ANY DROPS ######################
+    checks = {
+        'duplicate': get_not_duplicate, 'no_dispatch': get_dispatch, 'no_location': get_location,
+        'bad_alarm': get_alarm_ok, 'bad_turnout': get_turnout_ok, 'bad_travel': get_travel_ok,
+        'bad_commit': get_commit_ok, 'bad_total': get_total_ok,
+        'bad_from_alarm': get_from_alarm_ok, 'bad_idle': get_idle_seconds_ok,
+    }
+
+    dropped = dataframe[~calls_to_keep].copy()
+
+
+    # claude reccomends me np.select w a list extraction, this is much more readable.
+    # loc returns values with their respective index
+    # initialized w NONE to be replaced by drop reason
+
+    dropped["drop_reason"] = (pd.Series("NONE", index=dropped.index).case_when([
+            (~get_not_duplicate.loc[dropped.index], "duplicate"),
+            (~get_dispatch.loc[dropped.index], "no_dispatch"),
+            (~get_location.loc[dropped.index], "no_location"),
+            (~get_alarm_ok.loc[dropped.index], "bad_alarm"),
+            (~get_turnout_ok.loc[dropped.index], "bad_turnout"),
+            (~get_travel_ok.loc[dropped.index], "bad_travel"),
+            (~get_commit_ok.loc[dropped.index], "bad_commit"),
+            (~get_total_ok.loc[dropped.index], "bad_total"),
+            (~get_from_alarm_ok.loc[dropped.index], "bad_from_alarm"),
+            (~get_idle_seconds_ok.loc[dropped.index], "bad_idle"),
+        ])
+    )
+
+    dropped.to_parquet(VARIABLES.DROPPED_ET_CAD_PARQ)
+    print(dropped['drop_reason'].value_counts().to_string())
+    ################################################
 
     #usable = dataframe[calls_to_keep].copy()
     #print(f"ended at {len(usable)} rows ({len(usable) / starting_count:.1%} of input)")

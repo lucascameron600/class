@@ -20,14 +20,17 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pyarrow.parquet as pq
+import requests
 
 import VARIABLES
 
-OSRM_URL = ""
 
+osrm_sesh = requests.Session()
 
-# ALL DROP CRITERIA
+############################################################################
+############ ALL DROP CRITERIA #############################################
+############################################################################
+
 # predictor of on road status, unit presses button quickly
 # means they were likely in vehicle
 # this is a judgement call, based on visaulaizaion of data
@@ -42,7 +45,7 @@ MIN_ROUTE_METERS = 400
 
 
 #not sure about this yet
-MAX_DETOUR_RATIO =
+MAX_DETOUR_RATIO = None #TODO
 
 # loosley based on paper,
 # have to exclude only outlier time segments
@@ -58,16 +61,16 @@ MAX_ROUTE_SPEED = 90
 
 
 def haversine(lat1, lon1, lat2, lon2):
-    # reference: https://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-  and-distance-between-two-gps-points
+    # reference: https://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points
 
-    R = 6372.8 # this is in km
-    dLat = radians(lat2 - lat1)
-    dLon = radians(lon2 - lon1)
-    lat1 = radians(lat1)
-    lat2 =radians(lat2)
+    R = 6372.8 # this is in km radius of earth
+    dLat = np.radians(lat2 - lat1)
+    dLon = np.radians(lon2 - lon1)
+    lat1 = np.radians(lat1)
+    lat2 = np.radians(lat2)
 
-    a = sin(dLat/2)**2 + cos(lat1)*cos(lat2)*sin(dLon/2)**2
-    c = 2*asin(sqrt(a))
+    a = np.sin(dLat/2)**2 + np.cos(lat1)*np.cos(lat2)*np.sin(dLon/2)**2
+    c = 2*np.arcsin(np.sqrt(a))
 
     return R * c * 1000 #outputs in meters
 
@@ -78,11 +81,11 @@ def one_osrm_route(from_lat, from_lon, to_lat, to_lon):
     url = f"http://localhost:5000/route/v1/driving/{from_lon},{from_lat};{to_lon},{to_lat}?overview=false"
 
     #json format
-    http_response = osrm_session.get(url, timeout=1)
+    http_response = osrm_sesh.get(url, timeout=1)
     response = http_response.json()
 
     if response.get("code") != "Ok":
-        return np.nan, np.nan, np.nan
+        return np.nan, np.nan
 
     route = response['routes'][0]
     return route['distance'], route['duration']
@@ -90,42 +93,54 @@ def one_osrm_route(from_lat, from_lon, to_lat, to_lon):
 
 def flag_all_osrm_route(dataframe, from_cols, to_cols, name):
     # route all combos then add back to trip
-    coordinates = from_cols + to_cols
+    # from_cols = [lat,lon] to_cols = [lat,lon]
 
-    unique_pairs = {dataframe[coordinates].drop_duplicates().copy()}
+    coordinates = from_cols + to_cols
+    unique_pairs = dataframe[coordinates].drop_duplicates().copy()
     print(f'routing {len(unique_pairs):,} unique pairs')
 
     results = []
+    for _i, from_lat, from_lon, to_lat, to_lon in unique_pairs.itertuples():
+        distance_meters, duration_seconds = one_osrm_route(from_lat, from_lon, to_lat, to_lon)
+        results.append({f'{name}_meters': distance_meters, f'{name}_duration': duration_seconds})
 
-    for pair in unique_pairs.itertuples():
-        distance_meters, duration_seconds = osrm_route(row.from_lat, row.from_lon, row.to_lat, row.to_lon)
-
-        results.append('{name}_meters': distance_meters, '{name}_duration': duration_seconds})
-
+    # give results the same index as our unique pairs
     results = pd.DataFrame(results, index=unique_pairs.index)
-    routed_pairs = unique_pairs.join(route_results)
+    routed_pairs = unique_pairs.join(results)
 
-    # give every original trip its matching OSRM result.
     return dataframe.merge(routed_pairs, on=coordinates, how="left")
 
 
 
 def add_home_station(dataframe):
 
-    extracted = dataframe['unit_id'].astype("string").str.extract(r'(\d+)', expand=False) #gets only digits
+    extracted = dataframe['unit_id'].astype("string").str.extract(r'(\d+)', expand=False) #expand false gets series instead of dataframe
 
     dataframe['home_station'] = pd.to_numeric(extracted).astype('Int64')
     print(f"engines with no station: {dataframe['home_station'].isna().sum():,}")
     return dataframe
 
-#def add_station_coords(dataframe)
+def add_station_coords(dataframe):
+    return dataframe # INPROG
 
+
+def mark_dropped(dataframe, keep_mask, reason):
+    keep_mask = keep_mask.fillna(False).astype(bool)
+    newly_dropped = ~keep_mask & dataframe['drop_reason'].isna()
+    dataframe.loc[newly_dropped, 'drop_reason'] = reason
+    print(f"  dropped {reason:<20}: {newly_dropped.sum():,}")
+    return dataframe
+
+############################################################################
+##################### MAIN FILTERS #########################################
+############################################################################
 
 def keep_code3_engines_first_dispatched(dataframe):
     ##first dispatched only one trip per incident
     ## one engine leaving its station to the area of the call
-    mask = calls['unit_type'].isin(['engine'])
-    calls = calls[mask]
+    mask = dataframe['unit_type'].isin(['engine'])
+    ## TODO: first dispatched
+    return dataframe[mask].copy()
 
 
 def keep_plausible_fromstation(dataframe):
@@ -134,32 +149,70 @@ def keep_plausible_fromstation(dataframe):
     ## attempts to deal with crews forgetting to press button
     ## Westgate 2015 paper solved wtih gps map matching
     mask = dataframe['turnout_seconds'].between(MIN_TURNOUT_SECONDS, MAX_TURNOUT_SECONDS)
-    return dataframe[mask]
+    return mark_dropped(dataframe, mask, 'turnout fromstation exclusion')
 
 
-def keep_straight_line_distance():
+def keep_enough_idle_time(dataframe):
+    return dataframe #INPROG
+
+
+def keep_straight_line_distance(dataframe):
     ## drop calls that are within 400m GCD of the staion
     ## mostly noise based on toronto paper
+    return dataframe #INPROG
 
-def keep_routed_distance()
+
+def keep_routed_distance(dataframe):
     ## route call with osrm and see if it is over 400 meters, and
-    ## also
+    return dataframe #INPROG
+
+
+def keep_plausible_speed(dataframe):
+
+    return dataframe #INPROG
+
+
+######## REPLACE ME #################################
+def compare_kept_vs_dropped(dataframe):
+    status = dataframe['drop_reason'].fillna('KEPT')
+    print(status.value_counts().to_string())
+
+    cols = ['idle_seconds', 'turnout_seconds', 'travel_time_seconds']
+    print(dataframe.groupby(status)[cols].median().T.round(1).to_string())
+
+    for col in ['hour_of_day', 'day_of_week', 'home_station', 'station_area']:
+        rate = dataframe.groupby(col)['is_kept'].agg(['mean', 'size'])
+        print(f"\nkeep rate by {col}")
+        print(rate.sort_values('mean').to_string())
+##################################
+
+
 def main():
     start_time = time.perf_counter()
 
     calls = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
 
-    keep_code3_engines_first_dispatched(calls)
-    add_home_station(calls)
-    add_station_coords(calls)
-    keep_plausible_fromstation(calls)
-    keep_enough_idle_time(calls)
-    keep_straight_line_distance(calls)
-    keep_routed_distance(calls)
-    keep_plausible_speed(calls)
+    calls = keep_code3_engines_first_dispatched(calls)
+
+    calls['drop_reason'] = pd.Series(pd.NA, index = calls.index, dtype='string')
+
+    calls = add_home_station(calls)
+    calls = add_station_coords(calls)
+    calls = keep_plausible_fromstation(calls)
+    calls = keep_enough_idle_time(calls)
+    calls = keep_straight_line_distance(calls)
+    calls = keep_routed_distance(calls)
+    calls = keep_plausible_speed(calls)
 
 
+    calls['is_kept'] = calls['drop_reason'].isna()
+    compare_kept_vs_dropped(calls)
 
+    #calls.to_parquet(VARIABLES.GOOD_TRIPS_ALL_PARQ)
+    #calls[calls['is_kept']].to_parquet(VARIABLES.GOOD_TRIPS_PARQ)
+
+    end_time = time.perf_counter()
+    print(f'total run time = {end_time - start_time}')
 
 if __name__ == "__main__":
     main()
