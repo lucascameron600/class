@@ -34,7 +34,7 @@ osrm_sesh = requests.Session()
 # predictor of on road status, unit presses button quickly
 # means they were likely in vehicle
 # this is a judgement call, based on visaulaizaion of data
-MIN_TURNOUT_SECONDS = 20
+MIN_TURNOUT_SECONDS = 30
 MAX_TURNOUT_SECONDS = 180    # catch overhead and missed presses of enroute status, discard for unreliable
 
 
@@ -125,6 +125,7 @@ def add_station_coords(dataframe):
 
 
 def flag_dropped(dataframe, keep_mask, reason):
+    #instead of droping with the mask, just use this to keep with a reason
     keep_mask = keep_mask.fillna(False).astype(bool)
     newly_dropped = ~keep_mask & dataframe['drop_reason'].isna()
     dataframe.loc[newly_dropped, 'drop_reason'] = reason
@@ -146,8 +147,7 @@ def keep_code3_engines_first_dispatched(dataframe):
 def keep_plausible_fromstation(dataframe):
     ## did this unit start at its station? according to exploratory visualization,
     ## a clean predictor of weather a unit is at station, is how fast the unit presses the button
-    ## attempts to deal with crews forgetting to press button
-    ## Westgate 2015 paper solved wtih gps map matching
+    ## Westgate 2016 paper solved wtih gps map matching
     mask = dataframe['turnout_seconds'].between(MIN_TURNOUT_SECONDS, MAX_TURNOUT_SECONDS)
 
     return flag_dropped(dataframe, mask, ': turnout exclusion')
@@ -174,17 +174,33 @@ def keep_plausible_speed(dataframe):
 
 
 ######## REPLACE ME #################################
-def compare_kept_vs_dropped(dataframe):
-    status = dataframe['drop_reason'].fillna('KEPT')
-    print(status.value_counts().to_string())
 
-    cols = ['idle_seconds', 'turnout_seconds', 'travel_time_seconds']
-    print(dataframe.groupby(status)[cols].median().T.round(1).to_string())
 
-    for col in ['hour_of_day', 'day_of_week', 'home_station', 'station_area']:
-        rate = dataframe.groupby(col)['is_kept'].agg(['mean', 'size'])
-        print(f"\nkeep rate by {col}")
-        print(rate.sort_values('mean').to_string())
+def check_bias(dataframe, station):
+    # check how much our filters bias the travel times at the 90th percentiles
+    # if large bias, could shape the way the map is drawn at 90th
+
+    call_hour = dataframe['received_time'].dt.floor('h')
+    dataframe['calls_that_hour'] = (dataframe.groupby(['station_area', call_hour])['incident_id'].transform('size'))
+
+    one_station = dataframe[dataframe['home_station'].eq(station)].copy()
+
+    load_rank = one_station['calls_that_hour'].rank(method='first')
+
+    one_station['load'] = pd.qcut(load_rank, 4, labels=['low', 'med', 'high', 'very high'])
+    print(f"\nstation {station} keep rate by load")
+
+    keep_rate = (one_station.groupby('load', observed=True)['is_kept'].mean())
+    print(keep_rate.to_string())
+    print(f"\nstation {station} kept 90th percentile travel time by load")
+
+    kept = one_station[one_station['is_kept']]
+
+    travel_p90 = (kept.groupby('load', observed=True)['travel_time_seconds'].quantile(.9))
+
+    print(travel_p90.to_string())
+
+    return dataframe
 ##################################
 
 
@@ -207,7 +223,7 @@ def main():
 
 
     calls['is_kept'] = calls['drop_reason'].isna()
-    compare_kept_vs_dropped(calls)
+    check_bias(calls, station=3)
 
     #calls.to_parquet(VARIABLES.GOOD_TRIPS_ALL_PARQ)
     #calls[calls['is_kept']].to_parquet(VARIABLES.GOOD_TRIPS_PARQ)
