@@ -124,7 +124,7 @@ def add_station_coords(dataframe):
     return dataframe # INPROG
 
 
-def mark_dropped(dataframe, keep_mask, reason):
+def flag_dropped(dataframe, keep_mask, reason):
     keep_mask = keep_mask.fillna(False).astype(bool)
     newly_dropped = ~keep_mask & dataframe['drop_reason'].isna()
     dataframe.loc[newly_dropped, 'drop_reason'] = reason
@@ -138,7 +138,7 @@ def mark_dropped(dataframe, keep_mask, reason):
 def keep_code3_engines_first_dispatched(dataframe):
     ##first dispatched only one trip per incident
     ## one engine leaving its station to the area of the call
-    mask = dataframe['unit_type'].isin(['engine'])
+    mask = dataframe['unit_type'].isin(['ENGINE'])
     ## TODO: first dispatched
     return dataframe[mask].copy()
 
@@ -149,7 +149,8 @@ def keep_plausible_fromstation(dataframe):
     ## attempts to deal with crews forgetting to press button
     ## Westgate 2015 paper solved wtih gps map matching
     mask = dataframe['turnout_seconds'].between(MIN_TURNOUT_SECONDS, MAX_TURNOUT_SECONDS)
-    return mark_dropped(dataframe, mask, 'turnout fromstation exclusion')
+
+    return flag_dropped(dataframe, mask, ': turnout exclusion')
 
 
 def keep_enough_idle_time(dataframe):
