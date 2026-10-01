@@ -39,7 +39,7 @@ function setup()
       -- For shortest distance without penalties for accessibility
       -- weight_name                     = 'distance',
       process_call_tagless_node      = false,
-      u_turn_penalty                 = 45,    --- u turn hard in sf, CHANGED FROM 20stock! crews need spotters when doing a u turn, and u turns are hard on narrow ways
+      u_turn_penalty                 = 55,    --- u turn hard in sf, CHANGED FROM 20stock! crews need spotters when doing a u turn, and u turns are hard on narrow ways
       continue_straight_at_waypoint  = true,
       use_turn_restrictions          = false, -- no turn rest L
       left_hand_driving              = false,
@@ -221,7 +221,7 @@ function setup()
     -- could change
     speeds = Sequence {
       highway = {
-        motorway        = 100,
+        motorway        = 70,
         motorway_link   = 56,
         trunk           = 56,
         trunk_link      = 40,
@@ -562,7 +562,7 @@ function process_way(profile, way, result, relations)
 
     -- compute speed taking into account way type, maxspeed tags, etc.
     WayHandlers.speed,
-    WayHandlers.maxspeed,
+    --WayHandlers.maxspeed,
     WayHandlers.surface,
 
     -- apply vehicle-specific maximum speed cap before calculating rates
