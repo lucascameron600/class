@@ -155,8 +155,8 @@ def keep_has_travel_time(dataframe):
     return flag_dropped(dataframe, mask, 'no_travel_time')
 
 def keep_code3_engines_first_dispatched(dataframe):
-    ##first dispatched only one trip per incident
-    ## one engine leaving its station to the area of the call
+    ##first dispatched? only one trip per incident
+    ## one engine leaving its station code 3 to the area of the call
     mask = dataframe['unit_type'].isin(['ENGINE']) & dataframe['is_code3']
     ## TODO: first dispatched
     return dataframe[mask].copy()
@@ -196,38 +196,6 @@ def keep_plausible_speed(dataframe):
 
 ######## REPLACE ME #################################
 
-def check_bias(dataframe, station):
-    # check how much our filters bias the travel times at the 90th percentiles
-    # if large bias, could shape the way the map is drawn at 90th
-
-    call_hour = dataframe['received_time'].dt.floor('h')
-    dataframe['calls_that_hour'] = (dataframe.groupby(['station_area', call_hour])['incident_id'].transform('size')) #calc num rows
-
-    one_station = dataframe[dataframe['home_station'].eq(station)].copy()
-
-    call_volume_rank = one_station['calls_that_hour'].rank(method='first')
-
-    one_station['call_volume'] = pd.qcut(call_volume_rank, 4, labels=['least call volume', 'medium call volume', 'high call volume', 'very high call volume'])
-
-    print(f'\n===========================================')
-    print(f"station {station} keep rate by call volume")
-    print(f'-------------------------------------------')
-
-    keep_rate = (one_station.groupby('call_volume', observed=True)['is_kept'].mean())
-    print(keep_rate.to_string())
-    print(f'===========================================')
-
-    print(f'\n=========================================')
-    print(f"station {station} kept 90th percentile travel time by call volume")
-    print(f'-------------------------------------------')
-
-    kept = one_station[one_station['is_kept']]
-
-    travel_p90 = (kept.groupby('call_volume', observed = True)['travel_time_seconds'].quantile(.9))
-    print(travel_p90.to_string())
-    print(f'===========================================')
-
-    return dataframe
 
 def turnout_sweep(dataframe, stations=(1, 3, 36, 35, 5)):
     ## how do travel times change as the minimum turnout turnout cuttof goes up
@@ -235,14 +203,16 @@ def turnout_sweep(dataframe, stations=(1, 3, 36, 35, 5)):
     results = []
 
     for cutoff in [0, 5, 10, 15, 20, 25, 30, 40]:
-        ok = dataframe['turnout_seconds'].between(cutoff, MAX_TURNOUT_SECONDS, inclusive='left')
+        ok = dataframe['turnout_seconds'].between(cutoff, MAX_TURNOUT_SECONDS, inclusive = "left")
         kept = dataframe[ok]
         row = {'cutoff': cutoff, 'kept_share': ok.mean(), 'median': kept['travel_time_seconds'].median(),'p90': kept['travel_time_seconds'].quantile(0.9)}
 
 
         for s in stations:
-            row[f'p90_st{s}'] = kept.loc[kept['home_station'].eq(s), 'travel_time_seconds'].quantile(0.9)
+            station_travel = kept.loc[kept['home_station'].eq(s), 'travel_time_seconds']
 
+            #row[f'n_st{s}'] = station_travel.count()
+            row[f'p90_st{s}'] = station_travel.quantile(0.9)
         results.append(row)
     print('\n------------- TURNOUT CUTOFF SWEEP ------------------------------------')
     print(pd.DataFrame(results).round(2).to_string(index=False))
@@ -275,7 +245,7 @@ def main():
     calls['is_kept'] = calls['drop_reason'].isna()
     ################################################
 
-    check_bias(calls, station=5)
+    #check_bias(calls, station=5)
     turnout_sweep(calls)
 
     total = len(calls)
