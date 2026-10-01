@@ -37,11 +37,12 @@ def main():
     stations_df = pd.read_csv(VARIABLES.RAW_STATIONS_CSV)
     filtered = filter_station_columns(stations_df)
     #data_printout(filtered)
-    filtered.describe()
+    print(filtered.head().T)
     #impt_cols = ['common_name', 'facility_id', 'station_location']
     #dataframe = dataframe[impt_cols]
 
     save =  Path("data/workingfiles/stations/post_et_sf_stations.parquet")
+    print(f'wrote to {save}')
     filtered.to_parquet(save)
 if __name__ == '__main__':
     main()

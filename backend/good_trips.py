@@ -122,23 +122,39 @@ def add_home_station(dataframe):
     return dataframe
 
 
+#complicated join
+def add_station_coords(dataframe):
+    stations = pd.read_parquet(VARIABLES.POST_ET_STATIONS_PARQ).dropna(subset=['station_id'])
+
+    stations = stations.rename(columns={'station_id': 'home_station'})
+    stations['home_station'] = pd.to_numeric(stations['home_station']).astype('Int64')
+    stations = stations[['home_station', 'station_latitude', 'station_longitude']]
+
+    dataframe = dataframe.merge(stations, on='home_station', how='left', validate='many_to_one')
+    return flag_dropped(dataframe, dataframe['station_latitude'].notna(), 'no_station_coords')
+
 
 def flag_dropped(dataframe, keep_mask, reason):
-    #instead of droping with the mask, just use this to keep with a reason
     keep_mask = keep_mask.fillna(False).astype(bool)
-    newly_dropped = ~keep_mask & dataframe['drop_reason'].isna()
-    dataframe.loc[newly_dropped, 'drop_reason'] = reason
-    print(f"  dropped {reason:<20}: {newly_dropped.sum():,}")
+    dataframe[f'pass_{reason}'] = keep_mask
+    rows_to_drop = ~keep_mask & dataframe['drop_reason'].isna()
+    dataframe['drop_reason'] = dataframe['drop_reason'].mask(rows_to_drop, reason)
+    print(f"  dropped : {reason:<20}: {rows_to_drop.sum():,}")
     return dataframe
+
 
 ############################################################################
 ##################### MAIN FILTERS #########################################
 ############################################################################
 
+def keep_has_travel_time(dataframe):
+    mask = dataframe['travel_time_seconds'].notna()
+    return flag_dropped(dataframe, mask, 'no_travel_time')
+
 def keep_code3_engines_first_dispatched(dataframe):
     ##first dispatched only one trip per incident
     ## one engine leaving its station to the area of the call
-    mask = dataframe['unit_type'].isin(['ENGINE'])
+    mask = dataframe['unit_type'].isin(['ENGINE']) & dataframe['is_code3']
     ## TODO: first dispatched
     return dataframe[mask].copy()
 
@@ -163,7 +179,7 @@ def keep_straight_line_distance(dataframe):
 
     mask = dataframe['gcd_meters'] >= MIN_STRAIGHT_METERS
 
-    return flag_dropped(dataframe, mask, ': straight line exclusion') #INPROG
+    return flag_dropped(dataframe, mask, ': 400 m straight line exclusion') #INPROG
 
 
 def keep_routed_distance(dataframe):
@@ -208,18 +224,19 @@ def check_bias(dataframe, station):
 
     return dataframe
 
-def turnout_sensitivity(dataframe, stations=(1, 3, 36, 35, 5)):
+def turnout_sweep(dataframe, stations=(1, 3, 36, 35, 5)):
     ## how do travel times change as the minimum turnout turnout cuttof goes up
     results = []
+
     for cutoff in [0, 5, 10, 15, 20, 25, 30, 40]:
         ok = dataframe['turnout_seconds'].between(cutoff, MAX_TURNOUT_SECONDS, inclusive='left')
         kept = dataframe[ok]
-        row = {'cutoff': cutoff,
-               'kept_share': ok.mean(),
-               'median': kept['travel_time_seconds'].median(),
-               'p90': kept['travel_time_seconds'].quantile(0.9)}
+        row = {'cutoff': cutoff, 'kept_share': ok.mean(), 'median': kept['travel_time_seconds'].median(),'p90': kept['travel_time_seconds'].quantile(0.9)}
+
+
         for s in stations:
             row[f'p90_st{s}'] = kept.loc[kept['home_station'].eq(s), 'travel_time_seconds'].quantile(0.9)
+
         results.append(row)
     print('-----------------------------------------------------')
     print(pd.DataFrame(results).round(2).to_string(index=False))
@@ -231,24 +248,36 @@ def main():
     start_time = time.perf_counter()
 
     calls = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
-    stations = pd.read_parquet(VARIABLES.POST_ET_STATIONS_PARQ)
 
     calls = keep_code3_engines_first_dispatched(calls)
-
     calls['drop_reason'] = pd.Series(pd.NA, index = calls.index, dtype='string')
 
+    ######################################################################
     calls = add_home_station(calls)
+    calls = add_station_coords(calls)
+
+    ## toronto paper excludes those with no travel times, never explicitly stated, but cant measure travel time without it
+    ## would have to estimate where the unit was at to include a travel time
+    calls = keep_has_travel_time(calls)
+
     calls = keep_plausible_fromstation(calls)
     calls = keep_enough_idle_time(calls)
     calls = keep_straight_line_distance(calls)
     calls = keep_routed_distance(calls)
     calls = keep_plausible_speed(calls)
 
-
     calls['is_kept'] = calls['drop_reason'].isna()
-    check_bias(calls, station=5)
-    turnout_sensitivity(calls)
+    ################################################
 
+    check_bias(calls, station=3)
+    turnout_sweep(calls)
+
+    total = len(calls)
+    kept = calls['is_kept'].sum()
+    print(f"total code 3 engine trips quote from station unquote: {total:,}")
+    print(f"kept:        {kept:,} ({kept / total:.1%})")
+    print(f"dropped:     {total - kept:,} ({(total - kept) / total:.1%})")
+    #######################################################
     #calls.to_parquet(VARIABLES.GOOD_TRIPS_ALL_PARQ)
     #calls[calls['is_kept']].to_parquet(VARIABLES.GOOD_TRIPS_PARQ)
 
