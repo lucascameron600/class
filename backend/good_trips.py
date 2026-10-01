@@ -21,6 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
+from filterdata1 import data_printout
 
 import VARIABLES
 
@@ -34,7 +35,7 @@ osrm_sesh = requests.Session()
 # predictor of on road status, unit presses button quickly
 # means they were likely in vehicle
 # this is a judgement call, based on visaulaizaion of data
-MIN_TURNOUT_SECONDS = 30
+MIN_TURNOUT_SECONDS = 20
 MAX_TURNOUT_SECONDS = 180    # catch overhead and missed presses of enroute status, discard for unreliable
 
 
@@ -120,8 +121,6 @@ def add_home_station(dataframe):
     print(f"engines with no station: {dataframe['home_station'].isna().sum():,}")
     return dataframe
 
-def add_station_coords(dataframe):
-    return dataframe # INPROG
 
 
 def flag_dropped(dataframe, keep_mask, reason):
@@ -160,7 +159,11 @@ def keep_enough_idle_time(dataframe):
 def keep_straight_line_distance(dataframe):
     ## drop calls that are within 400m GCD of the staion
     ## mostly noise based on toronto paper
-    return dataframe #INPROG
+    dataframe['gcd_meters'] = haversine(dataframe['station_latitude'], dataframe['station_longitude'], dataframe['call_latitude'], dataframe['call_longitude'])
+
+    mask = dataframe['gcd_meters'] >= MIN_STRAIGHT_METERS
+
+    return flag_dropped(dataframe, mask, ': straight line exclusion') #INPROG
 
 
 def keep_routed_distance(dataframe):
@@ -175,32 +178,52 @@ def keep_plausible_speed(dataframe):
 
 ######## REPLACE ME #################################
 
-
 def check_bias(dataframe, station):
     # check how much our filters bias the travel times at the 90th percentiles
     # if large bias, could shape the way the map is drawn at 90th
 
     call_hour = dataframe['received_time'].dt.floor('h')
-    dataframe['calls_that_hour'] = (dataframe.groupby(['station_area', call_hour])['incident_id'].transform('size'))
+    dataframe['calls_that_hour'] = (dataframe.groupby(['station_area', call_hour])['incident_id'].transform('size')) #calc num rows
 
     one_station = dataframe[dataframe['home_station'].eq(station)].copy()
 
-    load_rank = one_station['calls_that_hour'].rank(method='first')
+    call_volume_rank = one_station['calls_that_hour'].rank(method='first')
 
-    one_station['load'] = pd.qcut(load_rank, 4, labels=['low', 'med', 'high', 'very high'])
-    print(f"\nstation {station} keep rate by load")
+    one_station['call_volume'] = pd.qcut(call_volume_rank, 4, labels=['least call volume', 'medium call volume', 'high call volume', 'very high call volume'])
+    print(f"\nstation {station} keep rate by call volume")
+    print(f'-------------------------------------------')
 
-    keep_rate = (one_station.groupby('load', observed=True)['is_kept'].mean())
+    keep_rate = (one_station.groupby('call_volume', observed=True)['is_kept'].mean())
     print(keep_rate.to_string())
-    print(f"\nstation {station} kept 90th percentile travel time by load")
+    print(f'-------------------------------------------')
+
+    print(f"\nstation {station} kept 90th percentile travel time by call volume")
+    print(f'-------------------------------------------')
 
     kept = one_station[one_station['is_kept']]
 
-    travel_p90 = (kept.groupby('load', observed=True)['travel_time_seconds'].quantile(.9))
-
+    travel_p90 = (kept.groupby('call_volume', observed = True)['travel_time_seconds'].quantile(.9))
     print(travel_p90.to_string())
+    print(f'-------------------------------------------')
 
     return dataframe
+
+def turnout_sensitivity(dataframe, stations=(1, 3, 36, 35, 5)):
+    ## how do travel times change as the minimum turnout turnout cuttof goes up
+    results = []
+    for cutoff in [0, 5, 10, 15, 20, 25, 30, 40]:
+        ok = dataframe['turnout_seconds'].between(cutoff, MAX_TURNOUT_SECONDS, inclusive='left')
+        kept = dataframe[ok]
+        row = {'cutoff': cutoff,
+               'kept_share': ok.mean(),
+               'median': kept['travel_time_seconds'].median(),
+               'p90': kept['travel_time_seconds'].quantile(0.9)}
+        for s in stations:
+            row[f'p90_st{s}'] = kept.loc[kept['home_station'].eq(s), 'travel_time_seconds'].quantile(0.9)
+        results.append(row)
+    print('-----------------------------------------------------')
+    print(pd.DataFrame(results).round(2).to_string(index=False))
+    print('-----------------------------------------------------')
 ##################################
 
 
@@ -208,13 +231,13 @@ def main():
     start_time = time.perf_counter()
 
     calls = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
+    stations = pd.read_parquet(VARIABLES.POST_ET_STATIONS_PARQ)
 
     calls = keep_code3_engines_first_dispatched(calls)
 
     calls['drop_reason'] = pd.Series(pd.NA, index = calls.index, dtype='string')
 
     calls = add_home_station(calls)
-    calls = add_station_coords(calls)
     calls = keep_plausible_fromstation(calls)
     calls = keep_enough_idle_time(calls)
     calls = keep_straight_line_distance(calls)
@@ -223,7 +246,8 @@ def main():
 
 
     calls['is_kept'] = calls['drop_reason'].isna()
-    check_bias(calls, station=3)
+    check_bias(calls, station=5)
+    turnout_sensitivity(calls)
 
     #calls.to_parquet(VARIABLES.GOOD_TRIPS_ALL_PARQ)
     #calls[calls['is_kept']].to_parquet(VARIABLES.GOOD_TRIPS_PARQ)
