@@ -340,7 +340,7 @@ def main():
 
     print(f"started at {start_len} ended at {len(clean)}")
     print(f"total program time {int(total_prog_time)} seconds")
-    VARIABLES.POST_ET_CAD_PARQ.parent.mkdir(parents=True, exist_ok=True)
+    #VARIABLES.POST_ET_CAD_PARQ.parent.mkdir(parents=True, exist_ok=True)
     clean.to_parquet(VARIABLES.POST_ET_CAD_PARQ)
     print(f"wrote {VARIABLES.POST_ET_CAD_PARQ} ({len(clean):,} rows)")
 

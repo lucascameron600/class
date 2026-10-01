@@ -275,7 +275,7 @@ def main():
     calls['is_kept'] = calls['drop_reason'].isna()
     ################################################
 
-    check_bias(calls, station=1)
+    check_bias(calls, station=5)
     turnout_sweep(calls)
 
     total = len(calls)
