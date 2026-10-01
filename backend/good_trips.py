@@ -139,7 +139,9 @@ def flag_dropped(dataframe, keep_mask, reason):
     dataframe[f'pass_{reason}'] = keep_mask
     rows_to_drop = ~keep_mask & dataframe['drop_reason'].isna()
     dataframe['drop_reason'] = dataframe['drop_reason'].mask(rows_to_drop, reason)
+    print(f'----------------------------------------------')
     print(f"  dropped : {reason:<20}: {rows_to_drop.sum():,}")
+    print(f'----------------------------------------------')
     return dataframe
 
 
@@ -206,21 +208,24 @@ def check_bias(dataframe, station):
     call_volume_rank = one_station['calls_that_hour'].rank(method='first')
 
     one_station['call_volume'] = pd.qcut(call_volume_rank, 4, labels=['least call volume', 'medium call volume', 'high call volume', 'very high call volume'])
-    print(f"\nstation {station} keep rate by call volume")
+
+    print(f'\n===========================================')
+    print(f"station {station} keep rate by call volume")
     print(f'-------------------------------------------')
 
     keep_rate = (one_station.groupby('call_volume', observed=True)['is_kept'].mean())
     print(keep_rate.to_string())
-    print(f'-------------------------------------------')
+    print(f'===========================================')
 
-    print(f"\nstation {station} kept 90th percentile travel time by call volume")
+    print(f'\n=========================================')
+    print(f"station {station} kept 90th percentile travel time by call volume")
     print(f'-------------------------------------------')
 
     kept = one_station[one_station['is_kept']]
 
     travel_p90 = (kept.groupby('call_volume', observed = True)['travel_time_seconds'].quantile(.9))
     print(travel_p90.to_string())
-    print(f'-------------------------------------------')
+    print(f'===========================================')
 
     return dataframe
 
@@ -238,9 +243,9 @@ def turnout_sweep(dataframe, stations=(1, 3, 36, 35, 5)):
             row[f'p90_st{s}'] = kept.loc[kept['home_station'].eq(s), 'travel_time_seconds'].quantile(0.9)
 
         results.append(row)
-    print('-----------------------------------------------------')
+    print('\n------------- TURNOUT CUTOFF SWEEP ------------------------------------')
     print(pd.DataFrame(results).round(2).to_string(index=False))
-    print('-----------------------------------------------------')
+    print('-------------------------------------------------------------------------')
 ##################################
 
 
