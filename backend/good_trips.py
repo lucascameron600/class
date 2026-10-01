@@ -137,6 +137,7 @@ def add_station_coords(dataframe):
 def flag_dropped(dataframe, keep_mask, reason):
     keep_mask = keep_mask.fillna(False).astype(bool)
     dataframe[f'pass_{reason}'] = keep_mask
+
     rows_to_drop = ~keep_mask & dataframe['drop_reason'].isna()
     dataframe['drop_reason'] = dataframe['drop_reason'].mask(rows_to_drop, reason)
     print(f'----------------------------------------------')
@@ -167,7 +168,7 @@ def keep_plausible_fromstation(dataframe):
     ## Westgate 2016 paper solved wtih gps map matching
     mask = dataframe['turnout_seconds'].between(MIN_TURNOUT_SECONDS, MAX_TURNOUT_SECONDS)
 
-    return flag_dropped(dataframe, mask, ': turnout exclusion')
+    return flag_dropped(dataframe, mask, 'turnout')
 
 
 def keep_enough_idle_time(dataframe):
@@ -181,7 +182,7 @@ def keep_straight_line_distance(dataframe):
 
     mask = dataframe['gcd_meters'] >= MIN_STRAIGHT_METERS
 
-    return flag_dropped(dataframe, mask, ': 400 m straight line exclusion') #INPROG
+    return flag_dropped(dataframe, mask, 'straight_line_exclusion') #INPROG
 
 
 def keep_routed_distance(dataframe):
@@ -190,7 +191,6 @@ def keep_routed_distance(dataframe):
 
 
 def keep_plausible_speed(dataframe):
-
     return dataframe #INPROG
 
 
@@ -231,6 +231,7 @@ def check_bias(dataframe, station):
 
 def turnout_sweep(dataframe, stations=(1, 3, 36, 35, 5)):
     ## how do travel times change as the minimum turnout turnout cuttof goes up
+    dataframe = dataframe[dataframe['pass_no_station_coords'] & dataframe['pass_no_travel_time'] & dataframe['pass_straight_line_exclusion']]
     results = []
 
     for cutoff in [0, 5, 10, 15, 20, 25, 30, 40]:
@@ -259,8 +260,8 @@ def main():
 
     ######################################################################
     calls = add_home_station(calls)
-    calls = add_station_coords(calls)
 
+    calls = add_station_coords(calls)
     ## toronto paper excludes those with no travel times, never explicitly stated, but cant measure travel time without it
     ## would have to estimate where the unit was at to include a travel time
     calls = keep_has_travel_time(calls)
@@ -274,7 +275,7 @@ def main():
     calls['is_kept'] = calls['drop_reason'].isna()
     ################################################
 
-    check_bias(calls, station=3)
+    check_bias(calls, station=1)
     turnout_sweep(calls)
 
     total = len(calls)
