@@ -15,6 +15,9 @@ POST_ET_STATIONS_PARQ = Path("../data/workingfiles/stations/post_et_sf_stations.
 #dropped calls from filter data
 DROPPED_ET_CAD_PARQ = Path('../data/workingfiles/cad/dropped_et_sf_cad.parquet')
 
+#after all filtering
+GOOD_TRIPS_PARQ = Path('../data/workingfiles/cad/good_trips.parquet')
+
 
 
 
