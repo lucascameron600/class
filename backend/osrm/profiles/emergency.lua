@@ -1,10 +1,30 @@
 -- LUKES CUSTOM SF PROFILE
 --
--- ADDED
+-- MAIN ROUTE SETTINGS TO CHANGE
+--
+-- after changes to process_turns all of the settings besides speed table effect route choice and not the duration
+-- stan will estimate road speeds so thats how it will be handled
+-- make sure if you feed stop signs into stan you undo changes to process_turn so that the signals and stops will effect duration as well
+-- or else stan will absorb
+--
+-- turn_penalty raising makes routes straighter, fewer staircase, lower more turns
+-- turn_bias    raising makes lefts cost more than rights, lowering rights cost more than lefts
+-- u_turn_penalty raising it makes routes go around the block, lowering makes more u turns
+-- control_penalties
+--      signal: raising avoids signalized arterials, lowering makes signals not matter as much
+--      stop: raising can avoid residential streets where stops are mapped, lowering makes unmapped stops matter less
+--
+-- class_preference raising residentials will make them have more prefernce.
+-- 
+-- WHEN READY TO TUNE
+--
+-- fix speeds mostly dont, keep signals and stops low and equal,
+-- tune turn penalty and residentail speed pref together
+-- tune turn bias
+-- 
+-- tune one at a time and score
+-- compare to predetermined metrics across car.lua and emergency.lua
 --  
---  SETTINGS: custom settings to mimic a fire engine type 1 mostly adjusted weight length
---  turn penalties and added new class preference settings to adjust how osrm decides
---  rate cost     --longboi
 --
 --
 --
@@ -51,7 +71,7 @@ function setup()
     side_road_multiplier      = 0.8,
     turn_penalty              = 12, --long wheelbase, need more long turns, pref long straight L
     speed_reduction           = 1, -- reduced to none speed reduction .8 stock applies to cars that have to wait for trafffic L
-    turn_bias                 = 1.075,
+    turn_bias                 = 1.0,
     cardinal_directions       = false,
     
     ------------------------
@@ -80,18 +100,23 @@ function setup()
     tertiary        = 1.00,
     tertiary_link   = 1.00,
 
-    unclassified    = 0.75,
-    residential     = 0.60,
+    unclassified    = 0.9,
+    residential     = 0.9,
 
-    living_street   = 0.40,
-    service         = 0.35
+    living_street   = 0.8,
+    service         = 0.8
 }, 
     ------------------------------
     ---TRAFFIC SIGNALS
+    --NEW slightly bumped up
+    --stock is 2, 2, 5
+    --preference only, dosent effect speed
+    --if fed routes into stan, need to make them account for duration
+    --as well
         control_penalties = {
-      --[obstacle_type.stop]            = 2,
-      --[obstacle_type.stop_minor]      = 2,
-      --[obstacle_type.traffic_signals] = 5,
+      [obstacle_type.stop]            = 3,
+      [obstacle_type.stop_minor]      = 3,
+      [obstacle_type.traffic_signals] = 4,
     },
 
     
@@ -284,7 +309,7 @@ function setup()
     },
 
     bridge_speeds = {
-      movable = 5
+
     },
 
     -- surface/trackype/smoothness
@@ -538,7 +563,7 @@ function process_way(profile, way, result, relations)
     WayHandlers.handle_height,
     WayHandlers.handle_width,
     WayHandlers.handle_length,
-    WayHandlers.handle_weight,
+    --WayHandlers.handle_weight,
 
     -- determine access status by checking our hierarchy of
     -- access tags, e.g: motorcar, motor_vehicle, vehicle
@@ -609,6 +634,11 @@ function process_turn(profile, turn)
   -- Use a sigmoid function to return a penalty that maxes out at turn_penalty
   -- over the space of 0-180 degrees.  Values here were chosen by fitting
   -- the function to some turn penalty samples from real driving.
+  
+  --NEW 
+  local pref = 0
+  --
+  
   local turn_penalty = profile.turn_penalty
   local turn_bias = turn.is_left_hand_driving and 1. / profile.turn_bias or profile.turn_bias
 
@@ -628,19 +658,27 @@ function process_turn(profile, turn)
         and turn.target_road.distance > 20 then
             goto skip
     end
-    turn.duration = turn.duration + (profile.control_penalties[obs.type] or obs.duration)
+    --NEW
+    pref = pref + (profile.control_penalties[obs.type] or obs.duration) 
+    --
     ::skip::
   end
 
   if turn.number_of_roads > 2 or turn.source_mode ~= turn.target_mode or turn.is_u_turn then
     if turn.angle >= 0 then
-      turn.duration = turn.duration + turn_penalty / (1 + math.exp( -((13 / turn_bias) *  turn.angle/180 - 6.5*turn_bias)))
+        --NEW
+      pref = pref + turn_penalty / (1 + math.exp( -((13 / turn_bias) *  turn.angle/180 - 6.5*turn_bias))) 
+      --
     else
-      turn.duration = turn.duration + turn_penalty / (1 + math.exp( -((13 * turn_bias) * -turn.angle/180 - 6.5/turn_bias)))
+    --NEW
+     pref = pref + turn_penalty / (1 + math.exp( -((13 * turn_bias) * -turn.angle/180 - 6.5/turn_bias))) 
+     --
     end
 
     if turn.is_u_turn then
-      turn.duration = turn.duration + profile.properties.u_turn_penalty
+    --NEW
+    pref = pref + profile.properties.u_turn_penalty
+    --
     end
   end
 
@@ -648,7 +686,7 @@ function process_turn(profile, turn)
   if profile.properties.weight_name == 'distance' then
      turn.weight = 0
   else
-     turn.weight = turn.duration
+     turn.weight = turn.duration + pref
   end
 
   if profile.properties.weight_name == 'routability' then
