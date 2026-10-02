@@ -255,7 +255,7 @@ def main():
     print(f"dropped:     {total - kept:,} ({(total - kept) / total:.1%})")
     #######################################################
     #calls.to_parquet(VARIABLES.GOOD_TRIPS_ALL_PARQ)
-    #calls[calls['is_kept']].to_parquet(VARIABLES.GOOD_TRIPS_PARQ)
+    calls[calls['is_kept']].to_parquet(VARIABLES.GOOD_TRIPS_PARQ)
 
     end_time = time.perf_counter()
     print(f'total run time = {end_time - start_time}')
