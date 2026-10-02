@@ -23,6 +23,7 @@ import pandas as pd
 import requests
 from filterdata1 import data_printout
 
+
 import VARIABLES
 
 
@@ -36,11 +37,11 @@ osrm_sesh = requests.Session()
 # means they were likely in vehicle
 # this is a judgement call, based on visaulaizaion of data
 MIN_TURNOUT_SECONDS = 20
-MAX_TURNOUT_SECONDS = 180    # catch overhead and missed presses of enroute status, discard for unreliable
+#MAX_TURNOUT_SECONDS = 180    # catch overhead and missed presses of enroute status, discard for unreliable
 
 
 #based on the paper, catches noise and double backs
-MIN_STRAIGHT_METERS = 400
+MIN_STRAIGHT_METERS = 0
 # extra catch for short travel times
 MIN_ROUTE_METERS = 400
 
@@ -166,7 +167,7 @@ def keep_plausible_fromstation(dataframe):
     ## did this unit start at its station? according to exploratory visualization,
     ## a clean predictor of weather a unit is at station, is how fast the unit presses the button
     ## Westgate 2016 paper solved wtih gps map matching
-    mask = dataframe['turnout_seconds'].between(MIN_TURNOUT_SECONDS, MAX_TURNOUT_SECONDS)
+    mask = dataframe['turnout_seconds'].ge(MIN_TURNOUT_SECONDS)
 
     return flag_dropped(dataframe, mask, 'turnout')
 
@@ -191,6 +192,7 @@ def keep_routed_distance(dataframe):
 
 
 def keep_plausible_speed(dataframe):
+
     return dataframe #INPROG
 
 
@@ -203,7 +205,7 @@ def turnout_sweep(dataframe, stations=(1, 3, 36, 35, 5)):
     results = []
 
     for cutoff in [0, 5, 10, 15, 20, 25, 30, 40]:
-        ok = dataframe['turnout_seconds'].between(cutoff, MAX_TURNOUT_SECONDS, inclusive = "left")
+        ok = dataframe['turnout_seconds'].ge(cutoff)
         kept = dataframe[ok]
         row = {'cutoff': cutoff, 'kept_share': ok.mean(), 'median': kept['travel_time_seconds'].median(),'p90': kept['travel_time_seconds'].quantile(0.9)}
 
@@ -225,6 +227,7 @@ def main():
 
     calls = pd.read_parquet(VARIABLES.POST_ET_CAD_PARQ)
 
+    #KEEP ONLY CODE 3
     calls = keep_code3_engines_first_dispatched(calls)
     calls['drop_reason'] = pd.Series(pd.NA, index = calls.index, dtype='string')
 
