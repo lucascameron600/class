@@ -10,7 +10,7 @@ trips = pd.read_parquet(VARIABLES.GOOD_TRIPS_PARQ)
 trips = trips[trips['total_response_seconds'].between(1, VARIABLES.MAX_TRAVEL_SECONDS)]
 
 ##NOT SET YET
-trips = trips[trips['idle_seconds'] > 3600]
+trips = trips[trips['idle_seconds'] > 900]
 
 ###FEW FEW POINTS ABOVE THIS
 trips = trips[trips['gcd_meters'] < 4000]
@@ -27,7 +27,9 @@ def p90_by_distance(trips):
 
 def show(label, kept):
     near, mid, far = p90_by_distance(kept)
-    print(f'{label:<22} {len(kept):>8,}   {near:>6.0f} {mid:>6.0f} {far:>6.0f}')
+    overall = kept['total_response_seconds'].quantile(0.9)
+
+    print(f'{label:<22} {len(kept):>8,}   {overall:>6.0f} {near:>6.0f} {mid:>6.0f} {far:>6.0f}')
 
 print('\nfilter                 trips kept   p90 at 0.5, 1, 2 km (s)')
 show('no speed filter', trips)
