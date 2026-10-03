@@ -1,8 +1,7 @@
 #here, take our cleaned trips, our cleaned stations, and then we combine them to build
 #solid trips that we think are usable for prediction
 
-#population = engine only, code 3, not upgraded, responding inside their first due area(excludes majority of move ups)
-##FIRST DUE MAP(unit at station) 90th percentile from dispatch to arrival on scene
+#POPULATION = engine only, code 3, not upgraded, responding inside their first due area(excludes majority of move ups)
 
 # important considerations from data and Large Network Travel Time Distributions for Ambulances
 
