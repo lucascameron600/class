@@ -1,6 +1,8 @@
 #here, take our cleaned trips, our cleaned stations, and then we combine them to build
 #solid trips that we think are usable for prediction
 
+##FIRST DUE MAP(unit at station) 90th percentile from dispatch to arrival on scene
+
 # important considerations from data and Large Network Travel Time Distributions for Ambulances
 
 # 1.) needs to have a solid starting point, "origin" -> filter on turnout time, if a unit smacks the button instantly
