@@ -73,21 +73,9 @@ plt.scatter(meters,seconds,color='blue',s=.05)
 plt.xlabel("meters")
 plt.ylabel("seconds")
 
-plt.savefig('hist.png', dpi=300)
+plt.savefig('out/hist.png', dpi=300)
 plt.close()
 
 
 ##########FIND THE LINE###########
-
-far = trips[trips['gcd_meters'].between(4500, 6000)]
-top = far.groupby(['home_station', 'call_latitude', 'call_longitude']).size().sort_values(ascending=False)
-print(top.head(10))
-
-station, lat, lon = top.index[0]
-spot = far[(far['call_latitude'] == lat) & (far['call_longitude'] == lon)]
-print(spot[['call_type', 'neighborhood', 'station_area']].value_counts().head(10))
-
-print(spot['travel_time_seconds'].describe())
-same_point = trips[(trips['call_latitude'] == lat) & (trips['call_longitude'] == lon)]
-print(same_point[['home_station', 'station_area']].value_counts().head(10))
 
