@@ -186,6 +186,12 @@ def keep_straight_line_distance(dataframe):
     return flag_dropped(dataframe, mask, 'straight_line_exclusion') #INPROG
 
 
+def keep_first_due_area(dataframe):
+    ## engines covering another station (move ups) respond in that station's area, not their own
+    mask = pd.to_numeric(dataframe['station_area'], errors='coerce') == dataframe['home_station']
+    return flag_dropped(dataframe, mask, 'not_first_due_area')
+
+
 def keep_routed_distance(dataframe):
     ## route call with osrm and see if it is over 400 meters, and
     return dataframe #INPROG
@@ -244,6 +250,7 @@ def main():
     calls = keep_straight_line_distance(calls)
     calls = keep_routed_distance(calls)
     calls = keep_plausible_speed(calls)
+    calls = keep_first_due_area(calls)
 
     calls['is_kept'] = calls['drop_reason'].isna()
     ################################################

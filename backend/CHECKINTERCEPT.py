@@ -8,6 +8,7 @@ trips = pd.read_parquet(VARIABLES.GOOD_TRIPS_PARQ)
 
 trips = trips[trips['total_response_seconds'].between(1, VARIABLES.MAX_TRAVEL_SECONDS)]
 trips = trips[trips['idle_seconds'] > 3600]
+trips = trips[trips['gcd_meters'] < 4000]
 
 
 trips['kmph'] = (trips['gcd_meters'] / trips['travel_time_seconds']) * 3.6
@@ -35,6 +36,7 @@ for fast in [90, 70, 50, 40]:
 
 trips['over_50'] = trips['kmph'] > 100
 trips['under_5'] = trips['kmph'] < 5
+
 
 trips = trips[~trips['over_50']]
 trips = trips[~trips['under_5']]
@@ -68,14 +70,20 @@ print('\nKOLESAR/RAND simplified formula via NFPA T = 45 + 1.7D')
 print(f'R^2 = {model.score(meters,seconds)}')
 print(f'MODEL_SLOPE = {model.coef_}')
 
-plt.scatter(meters,seconds,color='blue',s=.05)
+plt.scatter(meters,seconds,color='blue',s=.01)
 
 plt.xlabel("meters")
 plt.ylabel("seconds")
 
-plt.savefig('out/hist.png', dpi=300)
+print(f'wrote out/hist.png')
+plt.savefig('out/hist.png', dpi=600)
 plt.close()
 
-
 ##########FIND THE LINE###########
+counts = trips.groupby(['station_area', 'call_latitude', 'call_longitude']).size()
+print(counts.sort_values(ascending=False).head(20))
 
+roadway = trips['call_type'].isin(['Traffic Collision', 'Vehicle Fire'])
+points = trips.assign(roadway=roadway).groupby(['station_area', 'call_latitude', 'call_longitude'])['roadway'].agg(['count', 'mean'])
+busy = points[points['count'] >= 50].sort_values('mean', ascending=False)
+print(busy.head(20).round(2))
