@@ -65,7 +65,7 @@ print(f'trips over 50{trips['over_50'].sum()}')
 ## SIMPLIFIED RAND USING GCD
 ## paper says erorr increases with distance!
 
-model = LinearRegression().fit(meters, seconds)
+model = LinearRegression().fit(meters,seconds)
 log_error = np.log(seconds) - np.log(model.predict(meters))
 
 
