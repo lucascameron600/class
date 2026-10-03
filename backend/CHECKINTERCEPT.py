@@ -42,7 +42,7 @@ for fast in [90, 70, 50, 40]:
 
 ##DROP UNDER OR OVER
 trips['over_50'] = trips['kmph'] > 100
-trips['under_5'] = trips['kmph'] < 5
+trips['under_5'] = trips['kmph'] < 2
 
 trips = trips[~trips['over_50']]
 trips = trips[~trips['under_5']]
