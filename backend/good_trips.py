@@ -38,15 +38,21 @@ osrm_sesh = requests.Session()
 # predictor of on road status, unit presses button quickly
 # means they were likely in vehicle
 # this is a judgement call, based on visaulaizaion of data
+#need to tell stan
 MIN_TURNOUT_SECONDS = 20
-#MAX_TURNOUT_SECONDS = 180    # catch overhead and missed presses of enroute status, discard for unreliable
+MAX_TURNOUT_SECONDS = 600
 
 
-#based on the paper, catches noise and double backs
+#need sweep
+MIN_IDLE_TIME = 600
+
+#based on the paper, catches real close calls
 MIN_STRAIGHT_METERS = 0
+MAX_STRAIGHT_METERS = 4000
 # extra catch for short travel times
-MIN_ROUTE_METERS = 400
 
+#WILL USE #NEED SWEEP
+MIN_ROUTE_METERS = 150
 
 #not sure about this yet
 MAX_DETOUR_RATIO = None #TODO
@@ -55,8 +61,11 @@ MAX_DETOUR_RATIO = None #TODO
 # have to exclude only outlier time segments
 # designed to be loose cutoffs to mitigate losing data
 # remove any real data
-MIN_ROUTE_SPEED = 5
+
+MIN_ROUTE_SPEED = 1
 MAX_ROUTE_SPEED = 90
+
+MAX_TRAVEL_SECONDS = 30 * 60
 
 
 ############################################################################
@@ -161,7 +170,7 @@ def keep_not_upgrade(dataframe):
     #calls upgraded on the way started without lights and sirens
     #biases times slow
     #TODOTODO make sure toher emergent priorities arent excluded
-    mask = dataframe['original_priority'].isin(['3']) & dataframe['final_priority'].eq('3')
+    mask = dataframe['original_priority'].isin(['3', 'E']) & dataframe['final_priority'].isin(['3', 'E'])
     return flag_dropped(dataframe, mask, 'upgraded_on_the_way')
 
 
@@ -182,6 +191,7 @@ def keep_plausible_fromstation(dataframe):
     return flag_dropped(dataframe, mask, 'turnout')
 
 
+#NEED SWEEP
 def keep_enough_idle_time(dataframe):
     return dataframe #INPROG
 

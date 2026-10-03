@@ -207,7 +207,7 @@ def remove_unusable_calls(dataframe):
     #only non negative intervals possibly calls get in with negative intervals. could be timezone differences
     get_alarm_ok = alarm.ge(0) | alarm.isna()
     get_turnout_ok = turnout.ge(0)| turnout.isna()
-    get_travel_ok = travel.ge(0) | travel.isna()
+    get_travel_ok = travel.ge(1) | travel.isna()
     get_commit_ok = commit.ge(0) | commit.isna()
     get_total_ok = total.ge(0) | total.isna()
     get_from_alarm_ok = from_alarm.ge(0) | from_alarm.isna()
