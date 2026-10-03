@@ -20,8 +20,8 @@ def filter_station_columns(dataframe):
     dataframe['station_latitude'] = shapely_column.y.values
 
 
-    # drop decomm fire station 21 and second station 7 building
-    dataframe = dataframe[~dataframe['facility_id'].isin([1207, 732])].reset_index(drop=True)
+    # drop decomm fire station 21 and second station 7 building and treasure island
+    dataframe = dataframe[~dataframe['facility_id'].isin([1207, 732,728])].reset_index(drop=True)
 
     #manually adding station 51 here wasnt in my sf csv
     station_51 = pd.DataFrame({'common_name': ['Fire Station #51 (Presidio, added manually)'],'station_id': [51], 'station_longitude': [-122.45578], 'station_latitude': [37.80152]})
