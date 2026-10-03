@@ -6,8 +6,13 @@ import VARIABLES
 
 trips = pd.read_parquet(VARIABLES.GOOD_TRIPS_PARQ)
 
+##NEED TO BE POSITIVE
 trips = trips[trips['total_response_seconds'].between(1, VARIABLES.MAX_TRAVEL_SECONDS)]
+
+##NOT SET YET
 trips = trips[trips['idle_seconds'] > 3600]
+
+###FEW FEW POINTS ABOVE THIS
 trips = trips[trips['gcd_meters'] < 4000]
 
 
@@ -33,19 +38,19 @@ for fast in [90, 70, 50, 40]:
     show(f'drop over {fast} km/h', trips[trips['kmph'] <= fast])
 ###################################3
 
-
+##DROP UNDER OR OVER
 trips['over_50'] = trips['kmph'] > 100
 trips['under_5'] = trips['kmph'] < 5
 
-
 trips = trips[~trips['over_50']]
 trips = trips[~trips['under_5']]
+
 
 meters = trips[['gcd_meters']]
 seconds = trips['total_response_seconds']
 
 
-
+##CHECK DISTRIBUTION OF KMPH PER HOUR
 #plt.hist(trips['kmph'], bins = 8000)
 #plt.axvline(trips['kmph'].median(), color='red')
 #plt.axvline(trips['kmph'].mean(), color='tomato',linestyle='--')
