@@ -1,6 +1,7 @@
 #here, take our cleaned trips, our cleaned stations, and then we combine them to build
 #solid trips that we think are usable for prediction
 
+#population = engine only, code 3, not upgraded, responding inside their first due area(excludes majority of move ups)
 ##FIRST DUE MAP(unit at station) 90th percentile from dispatch to arrival on scene
 
 # important considerations from data and Large Network Travel Time Distributions for Ambulances
@@ -157,8 +158,16 @@ def keep_has_travel_time(dataframe):
     mask = dataframe['travel_time_seconds'].notna()
     return flag_dropped(dataframe, mask, 'no_travel_time')
 
+def keep_not_upgrade(dataframe):
+    #calls upgraded on the way started without lights and sirens
+    #biases times slow
+    #TODOTODO make sure toher emergent priorities arent excluded
+    mask = dataframe['original_priority'].isin(['3']) & dataframe['final_priority'].eq('3')
+    return flag_dropped(dataframe, mask, 'upgraded_on_the_way')
+
+
 def keep_code3_engines_first_dispatched(dataframe):
-    ##first dispatched? only one trip per incident
+    ## first arrived?? gonna include all
     ## one engine leaving its station code 3 to the area of the call
     mask = dataframe['unit_type'].isin(['ENGINE']) & dataframe['is_code3']
     ## TODO: first dispatched
@@ -252,7 +261,9 @@ def main():
     calls = keep_straight_line_distance(calls)
     calls = keep_routed_distance(calls)
     calls = keep_plausible_speed(calls)
+
     calls = keep_first_due_area(calls)
+    calls = keep_not_upgrade(calls)
 
     calls['is_kept'] = calls['drop_reason'].isna()
     ################################################
