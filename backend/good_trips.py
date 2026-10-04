@@ -47,8 +47,8 @@ MAX_TURNOUT_SECONDS = 600
 MIN_IDLE_TIME = 600
 
 #based on the paper, catches real close calls
-MIN_STRAIGHT_METERS = 0
-MAX_STRAIGHT_METERS = 4000
+MIN_STRAIGHT_METERS = 100
+MAX_STRAIGHT_METERS = 8000
 # extra catch for short travel times
 
 #WILL USE #NEED SWEEP
@@ -170,8 +170,8 @@ def keep_not_upgrade(dataframe):
     #calls upgraded on the way started without lights and sirens
     #biases times slow
     #TODOTODO make sure toher emergent priorities arent excluded
-    mask = dataframe['original_priority'].isin(['3', 'E']) & dataframe['final_priority'].isin(['3', 'E'])
-    return flag_dropped(dataframe, mask, 'upgraded_on_the_way')
+    mask = dataframe['original_priority'].isin(['2']) & dataframe['final_priority'].isin(['3'])
+    return flag_dropped(dataframe, ~mask, 'upgraded_on_the_way')
 
 
 def keep_code3_engines_first_dispatched(dataframe):
@@ -191,6 +191,19 @@ def keep_plausible_fromstation(dataframe):
     return flag_dropped(dataframe, mask, 'turnout')
 
 
+def keep_not_call_box(dataframe):
+    ## call box addresses are placeholders so distance to them isnt real
+    is_box = dataframe['Address'].astype('string').str.upper().str.startswith('CALL BOX').fillna(False)
+    return flag_dropped(dataframe, ~is_box, 'call_box')
+
+
+def keep_not_late_press(dataframe):
+    ## crew pressed on scene as they cleared long after really arriving
+    gap  = (dataframe['available_time'] - dataframe['onscene_time']).dt.total_seconds()
+    kmph = dataframe['gcd_meters'] / dataframe['travel_time_seconds'] * 3.6
+    late = (gap < 60) & (kmph < 7) & (dataframe['travel_time_seconds'] > 300)
+    return flag_dropped(dataframe, ~late, 'late_press')
+
 #NEED SWEEP
 def keep_enough_idle_time(dataframe):
     return dataframe #INPROG
@@ -202,6 +215,7 @@ def keep_straight_line_distance(dataframe):
     dataframe['gcd_meters'] = haversine(dataframe['station_latitude'], dataframe['station_longitude'], dataframe['call_latitude'], dataframe['call_longitude'])
 
     mask = dataframe['gcd_meters'] >= MIN_STRAIGHT_METERS
+    mask &= dataframe['gcd_meters'] <= MAX_STRAIGHT_METERS
 
     return flag_dropped(dataframe, mask, 'straight_line_exclusion') #INPROG
 
@@ -270,8 +284,10 @@ def main():
     calls = keep_straight_line_distance(calls)
     calls = keep_routed_distance(calls)
     calls = keep_plausible_speed(calls)
+    calls = keep_not_late_press(calls)
+    calls = keep_not_call_box(calls)
+    #calls = keep_first_due_area(calls)
 
-    calls = keep_first_due_area(calls)
     calls = keep_not_upgrade(calls)
 
     calls['is_kept'] = calls['drop_reason'].isna()
