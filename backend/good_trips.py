@@ -44,7 +44,7 @@ MAX_TURNOUT_SECONDS = 600
 
 
 #need sweep
-MIN_IDLE_TIME = 600
+MIN_IDLE_TIME = 300
 
 #based on the paper, catches real close calls
 MIN_STRAIGHT_METERS = 100
@@ -106,6 +106,8 @@ def one_osrm_route(from_lat, from_lon, to_lat, to_lon):
 
 def flag_all_osrm_route(dataframe, from_cols, to_cols, name):
     # route all combos then add back to trip
+    ## need to try to snap a couple different ones
+
     # from_cols = [lat,lon] to_cols = [lat,lon]
 
     coordinates = from_cols + to_cols
@@ -286,7 +288,7 @@ def main():
     calls = keep_plausible_speed(calls)
     calls = keep_not_late_press(calls)
     calls = keep_not_call_box(calls)
-    #calls = keep_first_due_area(calls)
+    calls = keep_first_due_area(calls)
 
     calls = keep_not_upgrade(calls)
 
