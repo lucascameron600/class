@@ -208,7 +208,8 @@ def keep_not_late_press(dataframe):
 
 #NEED SWEEP
 def keep_enough_idle_time(dataframe):
-    return dataframe #INPROG
+    mask = dataframe['idle_seconds'] > 300
+    return flag_dropped(dataframe, mask, 'idle_seconds')
 
 
 def keep_straight_line_distance(dataframe):
