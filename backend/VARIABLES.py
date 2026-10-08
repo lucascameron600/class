@@ -19,6 +19,7 @@ DROPPED_ET_CAD_PARQ = Path('../data/workingfiles/cad/dropped_et_sf_cad.parquet')
 GOOD_TRIPS_PARQ = Path('../data/workingfiles/cad/good_trips.parquet')
 
 
+STAN_TABLE_PARQ = Path('../data/workingfiles/cad/stan_table.parquet')
 
 
 FIGURE_DIR = Path('../data/workingfiles/figures')

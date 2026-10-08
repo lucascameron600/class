@@ -1,7 +1,5 @@
 #takes good_trips.parquet and cuts it down to the one table the stan model reads.
-#one row = one code 3 engine response that left its own station for a call in its first due area
-#adds the osrm route for each trip and keeps only the columns that can help predict the response time
-#(turnout + travel), everything else stays behind in good_trips
+
 
 import numpy as np
 import pandas as pd
@@ -12,8 +10,7 @@ import VARIABLES
 
 
 #move to VARIABLES later
-MODEL_TABLE_PARQ = VARIABLES.GOOD_TRIPS_PARQ.with_name('model_table.parquet')
-MODEL_TABLE_CSV = MODEL_TABLE_PARQ.with_suffix('.csv')   #same table as a csv, for R or to just open it
+#STAN_TABLE_CSV = STAN_TABLE_PARQ.with_suffix('.csv')
 
 OSRM_ROUTE_URL = "http://localhost:5000/route/v1/driving"
 
@@ -24,7 +21,7 @@ MODEL_COLUMNS = [
     'incident_id', 'unit_id', 'dispatch_time',
 
 
-    #PREDICTORS = travel_time_seconds, turnout_seconds, osrm_seconds, osrm_meters, station_index, time_bin
+    #PREDICTORS/USABLE = travel_time_seconds, total_response_seconds, turnout_seconds, osrm_seconds, osrm_meters, station_index, time_bin
 
 
     ##filter file drops anything under MIN_TURNOUT_SECONDS
@@ -42,6 +39,7 @@ MODEL_COLUMNS = [
 
     'gcd_meters',
 
+    #uneeded
     'station_latitude', 'station_longitude', 'call_latitude', 'call_longitude',
 ]
 
@@ -49,6 +47,7 @@ MODEL_COLUMNS = [
 def one_osrm_route(from_lat, from_lon, to_lat, to_lon):
     ##same request as the filter file. returns route meters and route seconds
     url = f"{OSRM_ROUTE_URL}/{from_lon},{from_lat};{to_lon},{to_lat}?overview=false"
+
     response = osrm_sesh.get(url, timeout=5).json()
 
     if response.get("code") != "Ok":
@@ -61,7 +60,7 @@ def one_osrm_route(from_lat, from_lon, to_lat, to_lon):
 def add_osrm_route(trips):
     coordinates = ['station_latitude', 'station_longitude', 'call_latitude', 'call_longitude']
     unique_pairs = trips[coordinates].drop_duplicates().copy()
-    print(f"routing {len(unique_pairs):,} unique station to call pairs")
+    print(f"routing {len(unique_pairs):,} pairs")
 
     routes = [one_osrm_route(*pair) for pair in unique_pairs.itertuples(index=False)]
     routes = pd.DataFrame(routes, columns=['osrm_meters', 'osrm_seconds'], index=unique_pairs.index)
@@ -98,7 +97,7 @@ def main():
 
     ##NO GAPS IN STATION NUMBERS
     trips['home_station'] = trips['home_station'].astype('int64')
-    trips['station_idx'] = pd.factorize(trips['home_station'], sort=True)[0] + 1
+    trips['station_idx'] = pd.factorize(trips['home_station'], sort=True)[0] + 1 #added one so no zero values
 
     table = trips[MODEL_COLUMNS].sort_values('dispatch_time').reset_index(drop=True)
 
@@ -110,9 +109,9 @@ def main():
 
     data_printout(table)
 
-    #table.to_parquet(MODEL_TABLE_PARQ)
+    table.to_parquet(VARIABLES.STAN_TABLE_PARQ)
     #table.to_csv(MODEL_TABLE_CSV, index=False)
-    print(f"wrote {MODEL_TABLE_PARQ} and {MODEL_TABLE_CSV.name} ({len(table):,} rows, {table['station_idx'].nunique()} stations)")
+    print(f"wrote {VARIABLES.STAN_TABLE_PARQ} and stantable.csv ({len(table):,} rows, {table['station_idx'].nunique()} stations)")
 
 
 if __name__ == '__main__':
