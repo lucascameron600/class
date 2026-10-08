@@ -20,10 +20,7 @@ MODEL_COLUMNS = [
     ##ids
     'incident_id', 'unit_id', 'dispatch_time',
 
-
     #PREDICTORS/USABLE = travel_time_seconds, total_response_seconds, turnout_seconds, osrm_seconds, osrm_meters, station_index, time_bin
-
-
     ##filter file drops anything under MIN_TURNOUT_SECONDS
 
     'turnout_seconds', 'travel_time_seconds', 'total_response_seconds',
@@ -31,8 +28,8 @@ MODEL_COLUMNS = [
     #routed
     'osrm_seconds', 'osrm_meters',
 
-    ##station effect. station_idx is 1 indexed no gaps
-    'home_station', 'station_idx',
+    ##station effect. station_index is 1 indexed no gaps
+    'home_station', 'station_index',
 
 
     'hour_of_day', 'day_of_week', 'time_bin',
@@ -45,7 +42,7 @@ MODEL_COLUMNS = [
 
 
 def one_osrm_route(from_lat, from_lon, to_lat, to_lon):
-    ##same request as the filter file. returns route meters and route seconds
+    ##same request as the filter file
     url = f"{OSRM_ROUTE_URL}/{from_lon},{from_lat};{to_lon},{to_lat}?overview=false"
 
     response = osrm_sesh.get(url, timeout=5).json()
@@ -97,7 +94,7 @@ def main():
 
     ##NO GAPS IN STATION NUMBERS
     trips['home_station'] = trips['home_station'].astype('int64')
-    trips['station_idx'] = pd.factorize(trips['home_station'], sort=True)[0] + 1 #added one so no zero values
+    trips['station_index'] = pd.factorize(trips['home_station'], sort=True)[0] + 1 #added one so no zero values
 
     table = trips[MODEL_COLUMNS].sort_values('dispatch_time').reset_index(drop=True)
 
@@ -109,9 +106,16 @@ def main():
 
     data_printout(table)
 
+    #fill
+    stan = {}
+
+
+
+
+
     table.to_parquet(VARIABLES.STAN_TABLE_PARQ)
     #table.to_csv(MODEL_TABLE_CSV, index=False)
-    print(f"wrote {VARIABLES.STAN_TABLE_PARQ} and stantable.csv ({len(table):,} rows, {table['station_idx'].nunique()} stations)")
+    print(f"wrote {VARIABLES.STAN_TABLE_PARQ} and stantable.csv ({len(table):,} rows, {table['station_index'].nunique()} stations)")
 
 
 if __name__ == '__main__':
