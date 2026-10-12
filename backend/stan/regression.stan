@@ -6,10 +6,10 @@ data {
 
 
 parameters {
-  real alpha;
-  real beta;
+  real<lower=0> alpha;
+  real<lower=0> beta;
   real<lower=0> sigma;
 }
 model {
-  y ~ normal(alpha + beta * x, sigma);
+  y ~ lognormal(log(alpha + beta * x), sigma);
 }
