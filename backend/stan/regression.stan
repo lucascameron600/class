@@ -1,15 +1,19 @@
 data {
-  int<lower=0> N;
+  int<lower=1> N;
+  int<lower=1> S;  //stations
   vector[N] x;
   vector[N] y;
+  array[N] int<lower=1, upper=S> station;
 }
-
-
 parameters {
-  real<lower=0> alpha;
+  vector<lower=0>[S] alpha;   // each own intercept, in seconds
+  
   real<lower=0> beta;
   real<lower=0> sigma;
+  real<lower=1> nu;           // small = real heavy tail
 }
 model {
-  y ~ lognormal(log(alpha + beta * x), sigma);
+  nu ~ gamma(2, 0.1);
+  log(y) ~ student_t(nu, log(alpha[station] + beta * x), sigma);
 }
+
