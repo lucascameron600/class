@@ -22,10 +22,10 @@ def main():
     table = pd.read_parquet('../../data/workingfiles/cad/stan_table.parquet')
 
     night = (table['hour_of_day'] >= 22) | (table['hour_of_day'] < 6)
-    mu = np.log(table['home_station'].map(A) + BETA * table['osrm_meters'] + GAMMA * night)
+    mu = np.log(table['home_station'].map(A) + BETA * table['osrm_meters'])
 
 
-    table['prob'] = t.cdf((np.log(THRESHOLD) - mu) / SIGMA, df=NU)
+    table['prob'] = t.cdf(np.log(THRESHOLD), df=NU, loc=mu, scale=SIGMA)
 
 
     table['made_it'] = table['total_response_seconds'] <= THRESHOLD
