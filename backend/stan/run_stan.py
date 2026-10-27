@@ -8,7 +8,9 @@ model = CmdStanModel(stan_file='regression.stan')
 
 fit = model.sample(data='regression.json')
 
-print(fit.summary().loc[['beta', 'sigma', 'nu', 'gamma']])
+print(fit.summary().loc[['beta', 'sigma', 'nu', 'p_night']])
+
+
 
 # each stations intercept or alpha in seconds
 with open('station_lookup.json') as f:
